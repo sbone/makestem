@@ -260,22 +260,41 @@ fn run_stage(
 fn run_demucs(args: &[std::ffi::OsString], reporter: &mut impl Reporter) -> Result<()> {
     let label = "Separating audio with Demucs";
     reporter.report(Event::StageStarted(label.to_owned()));
+    #[cfg(target_os = "macos")]
+    let mut child = Command::new("/usr/bin/script")
+        .args(["-qF", "/dev/null", "demucs"])
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| PipelineError::new(format!("Could not start Demucs terminal: {e}")))?;
+    #[cfg(not(target_os = "macos"))]
     let mut child = Command::new("demucs")
         .args(args)
+        .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| PipelineError::new(format!("Could not start `demucs`: {e}")))?;
 
-    let mut stdout = child.stdout.take().expect("piped stdout");
-    let stdout_reader = thread::spawn(move || {
+    #[cfg(target_os = "macos")]
+    let progress_output = child.stdout.take().expect("piped stdout");
+    #[cfg(target_os = "macos")]
+    let secondary_output = child.stderr.take().expect("piped stderr");
+    #[cfg(not(target_os = "macos"))]
+    let progress_output = child.stderr.take().expect("piped stderr");
+    #[cfg(not(target_os = "macos"))]
+    let secondary_output = child.stdout.take().expect("piped stdout");
+
+    let secondary_reader = thread::spawn(move || {
+        let mut secondary_output = secondary_output;
         let mut captured = Vec::new();
-        let _ = stdout.read_to_end(&mut captured);
+        let _ = secondary_output.read_to_end(&mut captured);
         captured
     });
-    let stderr = child.stderr.take().expect("piped stderr");
-    let mut reader = BufReader::new(stderr);
-    let mut captured_stderr = Vec::new();
+    let mut reader = BufReader::new(progress_output);
+    let mut captured_progress = Vec::new();
     let mut chunk = Vec::new();
     let mut byte = [0_u8; 1];
 
@@ -287,7 +306,7 @@ fn run_demucs(args: &[std::ffi::OsString], reporter: &mut impl Reporter) -> Resu
             report_demucs_chunk(&chunk, reporter);
             break;
         }
-        captured_stderr.push(byte[0]);
+        captured_progress.push(byte[0]);
         if byte[0] == b'\r' || byte[0] == b'\n' {
             report_demucs_chunk(&chunk, reporter);
             chunk.clear();
@@ -299,7 +318,7 @@ fn run_demucs(args: &[std::ffi::OsString], reporter: &mut impl Reporter) -> Resu
     let status = child
         .wait()
         .map_err(|e| PipelineError::new(format!("Could not wait for Demucs: {e}")))?;
-    let stdout = stdout_reader.join().unwrap_or_default();
+    let secondary = secondary_reader.join().unwrap_or_default();
     if status.success() {
         reporter.report(Event::StageCompleted(label.to_owned()));
         Ok(())
@@ -309,8 +328,8 @@ fn run_demucs(args: &[std::ffi::OsString], reporter: &mut impl Reporter) -> Resu
             "demucs",
             Output {
                 status,
-                stdout,
-                stderr: captured_stderr,
+                stdout: Vec::new(),
+                stderr: [captured_progress, secondary].concat(),
             },
         ))
     }
@@ -329,29 +348,42 @@ fn demucs_progress(line: &str) -> Option<(String, Option<u64>)> {
         return None;
     }
     let lower = cleaned.to_ascii_lowercase();
-    let percent = extract_percent(&cleaned);
+    let steps = extract_fraction(&cleaned);
+    let percent = extract_percent(&cleaned).or_else(|| {
+        steps.and_then(|(current, total)| {
+            (total > 0).then_some((current.saturating_mul(100) / total).min(100))
+        })
+    });
     let detail = if lower.contains("download") {
-        "Downloading audio-separation model (first use)"
+        "Downloading audio-separation model (first use)".to_owned()
     } else if lower.contains("loading cached model") {
-        "Loading cached audio-separation model"
+        "Loading cached audio-separation model".to_owned()
     } else if lower.starts_with("reading ") || lower.contains(" samples,") {
-        "Reading source audio"
+        "Reading source audio".to_owned()
     } else if lower.contains("loading model") {
-        "Preparing audio-separation model"
+        "Preparing audio-separation model".to_owned()
     } else if lower.contains("pre-compiling gpu shaders") {
-        "Preparing GPU (first use only)"
+        "Preparing GPU (first use only)".to_owned()
     } else if lower.contains("separating") || percent.is_some() {
-        "Analyzing and separating audio"
+        match steps {
+            Some((current, total)) => {
+                let chunk = extract_fraction_after(&lower, "chunk ")
+                    .map(|(current, total)| format!(" • chunk {current} of {total}"))
+                    .unwrap_or_default();
+                format!("Analyzing audio • step {current} of {total}{chunk}")
+            }
+            None => "Analyzing and separating audio".to_owned(),
+        }
     } else if lower.contains("wrote ") {
-        "Writing separated stems"
+        "Writing separated stems".to_owned()
     } else {
         return None;
     };
-    Some((detail.to_owned(), percent))
+    Some((detail, percent))
 }
 
 fn extract_percent(value: &str) -> Option<u64> {
-    let before_percent = value.split('%').next()?;
+    let (before_percent, _) = value.split_once('%')?;
     let digits: String = before_percent
         .chars()
         .rev()
@@ -362,6 +394,35 @@ fn extract_percent(value: &str) -> Option<u64> {
         .rev()
         .collect();
     digits.parse::<u64>().ok().filter(|value| *value <= 100)
+}
+
+fn extract_fraction(value: &str) -> Option<(u64, u64)> {
+    let bytes = value.as_bytes();
+    for slash in bytes
+        .iter()
+        .enumerate()
+        .filter_map(|(index, byte)| (*byte == b'/').then_some(index))
+    {
+        let left = bytes[..slash]
+            .iter()
+            .rposition(|byte| !byte.is_ascii_digit())
+            .map_or(0, |index| index + 1);
+        let right = bytes[slash + 1..]
+            .iter()
+            .position(|byte| !byte.is_ascii_digit())
+            .map_or(bytes.len(), |index| slash + 1 + index);
+        if left < slash && slash + 1 < right {
+            let current = value[left..slash].parse().ok()?;
+            let total = value[slash + 1..right].parse().ok()?;
+            return Some((current, total));
+        }
+    }
+    None
+}
+
+fn extract_fraction_after(value: &str, marker: &str) -> Option<(u64, u64)> {
+    let start = value.find(marker)? + marker.len();
+    extract_fraction(&value[start..])
 }
 
 fn strip_ansi(value: &str) -> String {
@@ -574,6 +635,13 @@ mod tests {
             Some(("Analyzing and separating audio".to_owned(), Some(42)))
         );
         assert_eq!(demucs_progress("unrelated diagnostic"), None);
+        assert_eq!(
+            demucs_progress("Separating [####>---] 23/72 (1m 12s) chunk 1/2"),
+            Some((
+                "Analyzing audio • step 23 of 72 • chunk 1 of 2".to_owned(),
+                Some(31)
+            ))
+        );
     }
 }
 

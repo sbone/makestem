@@ -92,6 +92,15 @@ cargo clippy -- -D warnings
 cargo build --release
 ```
 
+Build the local Apple Silicon Mac app with Apple Command Line Tools:
+
+```sh
+./scripts/build-mac-app.sh
+open build/Stemcraft.app
+```
+
+This development build uses Demucs and FFmpeg from the local machine. A distributable release will bundle compatible tools and download only the audio-separation model on first use.
+
 The processing pipeline is separate from its terminal presentation and emits structured status events. A future Mac app can present the same workflow with drag-and-drop, queue progress, notifications, and Finder actions without replacing the audio engine.
 
 Longer term, Stemcraft may support multiple audio-separation models, since different models can perform better on different kinds of music. The goal is model choice without model complexity: strong defaults first, with other local models available when a difficult track benefits from another approach.

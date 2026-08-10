@@ -1,10 +1,29 @@
 use clap::{ArgAction, Parser};
 use indicatif::{ProgressBar, ProgressStyle};
+use serde_json::json;
+use std::io::{self, Write};
 use std::path::PathBuf;
 use std::time::Duration;
+use stemcraft::inspect::inspect_audio;
 use stemcraft::pipeline::{Event, Pipeline, Product, Reporter};
 
 struct TerminalReporter(Option<ProgressBar>);
+
+struct JsonReporter;
+
+impl Reporter for JsonReporter {
+    fn report(&mut self, event: Event) {
+        let value = match event {
+            Event::StageStarted(label) => json!({ "type": "stage_started", "label": label }),
+            Event::StageProgress { detail, percent } => {
+                json!({ "type": "stage_progress", "detail": detail, "percent": percent })
+            }
+            Event::StageCompleted(label) => json!({ "type": "stage_completed", "label": label }),
+        };
+        println!("{value}");
+        let _ = io::stdout().flush();
+    }
+}
 
 impl TerminalReporter {
     fn new() -> Self {
@@ -59,6 +78,14 @@ impl Reporter for TerminalReporter {
     about = "Create DJ-ready stems from a full mix"
 )]
 struct Cli {
+    /// Inspect a track and print machine-readable JSON
+    #[arg(long, hide = true)]
+    inspect_json: bool,
+
+    /// Stream machine-readable processing events
+    #[arg(long, hide = true)]
+    events_json: bool,
+
     /// Create only an acapella
     #[arg(short = 'a', long, action = ArgAction::SetTrue, conflicts_with = "instrumental")]
     acapella: bool,
@@ -74,6 +101,16 @@ struct Cli {
 
 fn main() {
     let cli = Cli::parse();
+    if cli.inspect_json {
+        match inspect_audio(&cli.track) {
+            Ok(inspection) => println!("{}", serde_json::to_string(&inspection).unwrap()),
+            Err(error) => {
+                eprintln!("{error}");
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
     let products = if cli.acapella {
         vec![Product::Acapella]
     } else if cli.instrumental {
@@ -82,11 +119,31 @@ fn main() {
         vec![Product::Acapella, Product::Instrumental]
     };
 
+    if cli.events_json {
+        let mut reporter = JsonReporter;
+        let result = run_pipeline(&cli.track, &products, &mut reporter);
+        match result {
+            Ok(outputs) => {
+                println!("{}", json!({ "type": "complete", "outputs": outputs }));
+            }
+            Err(error) => {
+                println!(
+                    "{}",
+                    json!({
+                        "type": "error",
+                        "message": error.message,
+                        "guidance": error.guidance
+                    })
+                );
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
+
     println!("Stemcraft\n");
     let mut reporter = TerminalReporter::new();
-    let result = Pipeline::preflight()
-        .and_then(|_| Pipeline::new(&cli.track))
-        .and_then(|pipeline| pipeline.run(&products, &mut reporter));
+    let result = run_pipeline(&cli.track, &products, &mut reporter);
     reporter.clear();
 
     match result {
@@ -108,4 +165,20 @@ fn main() {
             std::process::exit(1);
         }
     }
+}
+
+fn run_pipeline(
+    track: &std::path::Path,
+    products: &[Product],
+    reporter: &mut impl Reporter,
+) -> stemcraft::pipeline::Result<Vec<PathBuf>> {
+    reporter.report(Event::StageStarted("Checking required tools".to_owned()));
+    Pipeline::preflight()?;
+    reporter.report(Event::StageCompleted("Checking required tools".to_owned()));
+
+    reporter.report(Event::StageStarted("Inspecting source audio".to_owned()));
+    let pipeline = Pipeline::new(track)?;
+    reporter.report(Event::StageCompleted("Inspecting source audio".to_owned()));
+
+    pipeline.run(products, reporter)
 }

@@ -9,6 +9,7 @@ use std::{
 
 const MODEL: &str = "htdemucs_ft";
 const BITRATE: &str = "320k";
+const MODEL_FILENAME: &str = "htdemucs_ft.safetensors";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Product {
@@ -227,6 +228,68 @@ impl Pipeline {
     }
 }
 
+pub fn model_path() -> Option<PathBuf> {
+    #[cfg(target_os = "macos")]
+    {
+        std::env::var_os("HOME")
+            .map(PathBuf::from)
+            .map(|home| home.join("Library/Caches/demucs-rs").join(MODEL_FILENAME))
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        std::env::var_os("XDG_CACHE_HOME")
+            .map(PathBuf::from)
+            .or_else(|| std::env::var_os("HOME").map(|home| PathBuf::from(home).join(".cache")))
+            .map(|cache| cache.join("demucs-rs").join(MODEL_FILENAME))
+    }
+}
+
+pub fn prepare_model(reporter: &mut impl Reporter) -> Result<PathBuf> {
+    let path = model_path().ok_or_else(|| {
+        PipelineError::guided(
+            "Could not determine where to store the audio-separation model.",
+            "Check that your HOME directory is configured and writable.",
+        )
+    })?;
+    if path.is_file() {
+        reporter.report(Event::StageCompleted(
+            "Audio-separation model ready".to_owned(),
+        ));
+        return Ok(path);
+    }
+
+    require_tool(
+        "demucs",
+        "Install the native Demucs CLI and ensure `demucs` is on your PATH.",
+    )?;
+    let missing_input = std::env::temp_dir().join(format!(
+        ".stemcraft-model-download-{}-input.wav",
+        std::process::id()
+    ));
+    let unused_output = std::env::temp_dir().join(format!(
+        ".stemcraft-model-download-{}-output",
+        std::process::id()
+    ));
+    let args = vec![
+        missing_input.into_os_string(),
+        "-m".into(),
+        MODEL.into(),
+        "-s".into(),
+        "vocals".into(),
+        "-o".into(),
+        unused_output.into_os_string(),
+    ];
+    let result = run_demucs_with_label(&args, "Downloading audio-separation model", reporter);
+    if path.is_file() {
+        reporter.report(Event::StageCompleted(
+            "Audio-separation model ready".to_owned(),
+        ));
+        Ok(path)
+    } else {
+        result.map(|_| path)
+    }
+}
+
 fn require_tool(tool: &str, guidance: &str) -> Result<()> {
     Command::new(tool).arg("--help").output().map_err(|e| {
         if e.kind() == io::ErrorKind::NotFound {
@@ -258,7 +321,14 @@ fn run_stage(
 }
 
 fn run_demucs(args: &[std::ffi::OsString], reporter: &mut impl Reporter) -> Result<()> {
-    let label = "Separating audio with Demucs";
+    run_demucs_with_label(args, "Separating audio with Demucs", reporter)
+}
+
+fn run_demucs_with_label(
+    args: &[std::ffi::OsString],
+    label: &str,
+    reporter: &mut impl Reporter,
+) -> Result<()> {
     reporter.report(Event::StageStarted(label.to_owned()));
     #[cfg(target_os = "macos")]
     let mut child = Command::new("/usr/bin/script")
@@ -349,13 +419,29 @@ fn demucs_progress(line: &str) -> Option<(String, Option<u64>)> {
     }
     let lower = cleaned.to_ascii_lowercase();
     let steps = extract_fraction(&cleaned);
-    let percent = extract_percent(&cleaned).or_else(|| {
-        steps.and_then(|(current, total)| {
-            (total > 0).then_some((current.saturating_mul(100) / total).min(100))
+    let download_bytes = extract_byte_ratio(&cleaned);
+    let percent = extract_percent(&cleaned)
+        .or_else(|| {
+            download_bytes.and_then(|(current, total)| {
+                (total > 0.0).then_some(((current * 100.0 / total) as u64).min(100))
+            })
         })
-    });
-    let detail = if lower.contains("download") {
-        "Downloading audio-separation model (first use)".to_owned()
+        .or_else(|| {
+            steps.and_then(|(current, total)| {
+                (total > 0).then_some((current.saturating_mul(100) / total).min(100))
+            })
+        });
+    let detail = if lower.contains("download") || download_bytes.is_some() {
+        download_bytes.map_or_else(
+            || "Downloading audio-separation model (first use)".to_owned(),
+            |(current, total)| {
+                format!(
+                    "Downloading audio-separation model • {:.0} of {:.0} MB",
+                    current / 1_000_000.0,
+                    total / 1_000_000.0
+                )
+            },
+        )
     } else if lower.contains("loading cached model") {
         "Loading cached audio-separation model".to_owned()
     } else if lower.starts_with("reading ") || lower.contains(" samples,") {
@@ -423,6 +509,54 @@ fn extract_fraction(value: &str) -> Option<(u64, u64)> {
 fn extract_fraction_after(value: &str, marker: &str) -> Option<(u64, u64)> {
     let start = value.find(marker)? + marker.len();
     extract_fraction(&value[start..])
+}
+
+fn extract_byte_ratio(value: &str) -> Option<(f64, f64)> {
+    for slash in value.match_indices('/').map(|(index, _)| index) {
+        let left = parse_measurement_from_end(&value[..slash]);
+        let right = parse_measurement_from_start(&value[slash + 1..]);
+        if let (Some(left), Some(right)) = (left, right) {
+            return Some((left, right));
+        }
+    }
+    None
+}
+
+fn parse_measurement_from_end(value: &str) -> Option<f64> {
+    let value = value.trim_end();
+    let unit_start = value.rfind(|character: char| !character.is_ascii_alphabetic())? + 1;
+    let unit = &value[unit_start..];
+    let number_end = value[..unit_start].trim_end().len();
+    let number_start = value[..number_end]
+        .rfind(|character: char| !character.is_ascii_digit() && character != '.')
+        .map_or(0, |index| index + 1);
+    parse_bytes(&value[number_start..number_end], unit)
+}
+
+fn parse_measurement_from_start(value: &str) -> Option<f64> {
+    let value = value.trim_start();
+    let number_end =
+        value.find(|character: char| !character.is_ascii_digit() && character != '.')?;
+    let rest = value[number_end..].trim_start();
+    let unit_end = rest
+        .find(|character: char| !character.is_ascii_alphabetic())
+        .unwrap_or(rest.len());
+    parse_bytes(&value[..number_end], &rest[..unit_end])
+}
+
+fn parse_bytes(number: &str, unit: &str) -> Option<f64> {
+    let value: f64 = number.parse().ok()?;
+    let multiplier = match unit.to_ascii_lowercase().as_str() {
+        "b" => 1.0,
+        "kb" => 1_000.0,
+        "kib" => 1_024.0,
+        "mb" => 1_000_000.0,
+        "mib" => 1_048_576.0,
+        "gb" => 1_000_000_000.0,
+        "gib" => 1_073_741_824.0,
+        _ => return None,
+    };
+    Some(value * multiplier)
 }
 
 fn strip_ansi(value: &str) -> String {
@@ -606,6 +740,13 @@ mod tests {
         assert_eq!(
             useful_diagnostic(stderr),
             "First useful line — Last useful line"
+        );
+        assert_eq!(
+            demucs_progress("[####>---] 12.5 MiB/333.0 MiB (21s)"),
+            Some((
+                "Downloading audio-separation model • 13 of 349 MB".to_owned(),
+                Some(3)
+            ))
         );
     }
 

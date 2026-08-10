@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -39,6 +40,13 @@ enum ScreenState {
     case failed(String)
 }
 
+enum ModelState {
+    case missing
+    case downloading(ProcessingStatus)
+    case ready
+    case failed(String)
+}
+
 struct ProcessingStatus: Sendable {
     var stage: String
     var percent: Int?
@@ -69,8 +77,16 @@ struct ProcessingStatus: Sendable {
 @MainActor
 final class AppModel: ObservableObject {
     @Published var state: ScreenState = .empty
+    @Published var modelState: ModelState = Engine.modelIsReady ? .ready : .missing
     @Published var outputChoice: OutputChoice = .both
     @Published var isDropTarget = false
+    private var currentOperation: EventOperation?
+    private var currentOperationID: UUID?
+
+    var isDownloadingModel: Bool {
+        if case .downloading = modelState { return true }
+        return false
+    }
 
     func chooseFile() {
         let panel = NSOpenPanel()
@@ -95,23 +111,86 @@ final class AppModel: ObservableObject {
     func process(_ inspection: Inspection) {
         state = .processing(inspection, ProcessingStatus(stage: "Checking tools and source audio"))
         let choice = outputChoice
+        let operation = Engine.processEvents(
+            URL(fileURLWithPath: inspection.path),
+            choice: choice
+        )
+        let operationID = UUID()
+        currentOperation = operation
+        currentOperationID = operationID
         Task {
             do {
-                for try await event in Engine.processEvents(
-                    URL(fileURLWithPath: inspection.path),
-                    choice: choice
-                ) {
+                for try await event in operation.events {
+                    guard currentOperationID == operationID else { return }
                     apply(event, to: inspection)
                 }
+                guard currentOperationID == operationID else { return }
+                finishOperation()
+                modelState = .ready
                 state = .complete(inspection)
             } catch {
+                guard currentOperationID == operationID else { return }
+                finishOperation()
                 state = .failed(error.localizedDescription)
             }
         }
     }
 
+    func downloadModel() {
+        modelState = .downloading(ProcessingStatus(stage: "Starting model download"))
+        let operation = Engine.modelEvents()
+        let operationID = UUID()
+        currentOperation = operation
+        currentOperationID = operationID
+        Task {
+            do {
+                for try await event in operation.events {
+                    guard currentOperationID == operationID else { return }
+                    applyModel(event)
+                }
+                guard currentOperationID == operationID else { return }
+                finishOperation()
+                modelState = .ready
+            } catch {
+                guard currentOperationID == operationID else { return }
+                finishOperation()
+                modelState = .failed(error.localizedDescription)
+            }
+        }
+    }
+
+    func cancelModelDownload() {
+        currentOperationID = nil
+        currentOperation?.cancel()
+        currentOperation = nil
+        modelState = Engine.modelIsReady ? .ready : .missing
+    }
+
+    func cancelProcessing(_ inspection: Inspection) {
+        currentOperationID = nil
+        currentOperation?.cancel()
+        currentOperation = nil
+        state = .inspected(inspection)
+    }
+
+    private func finishOperation() {
+        currentOperation = nil
+        currentOperationID = nil
+    }
+
+    private func applyModel(_ event: EngineEvent) {
+        guard case .downloading(var status) = modelState else { return }
+        update(&status, with: event)
+        modelState = .downloading(status)
+    }
+
     private func apply(_ event: EngineEvent, to inspection: Inspection) {
         guard case .processing(_, var status) = state else { return }
+        update(&status, with: event)
+        state = .processing(inspection, status)
+    }
+
+    private func update(_ status: inout ProcessingStatus, with event: EngineEvent) {
         switch event.type {
         case "stage_started":
             status.stage = event.label ?? "Working…"
@@ -134,7 +213,6 @@ final class AppModel: ObservableObject {
         default:
             return
         }
-        state = .processing(inspection, status)
     }
 
     func reset() { state = .empty }
@@ -146,6 +224,15 @@ final class AppModel: ObservableObject {
 }
 
 enum Engine {
+    static var modelIsReady: Bool {
+        let home = ProcessInfo.processInfo.environment["HOME"]
+            ?? FileManager.default.homeDirectoryForCurrentUser.path
+        return FileManager.default.fileExists(
+            atPath: URL(fileURLWithPath: home)
+                .appendingPathComponent("Library/Caches/demucs-rs/htdemucs_ft.safetensors").path
+        )
+    }
+
     static var executable: URL {
         let bundled = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/stemcraft")
         if FileManager.default.isExecutableFile(atPath: bundled.path) { return bundled }
@@ -184,29 +271,43 @@ enum Engine {
     static func processEvents(
         _ url: URL,
         choice: OutputChoice
-    ) -> AsyncThrowingStream<EngineEvent, Error> {
-        AsyncThrowingStream { continuation in
+    ) -> EventOperation {
+        var arguments: [String] = ["--events-json"]
+        if choice == .acapella { arguments.append("-a") }
+        if choice == .instrumental { arguments.append("-i") }
+        arguments.append(url.path)
+        return eventStream(arguments: arguments, cleanup: audioCleanup(url, choice: choice))
+    }
+
+    static func modelEvents() -> EventOperation {
+        eventStream(arguments: ["--prepare-model"], cleanup: [])
+    }
+
+    private static func eventStream(
+        arguments: [String],
+        cleanup: [URL]
+    ) -> EventOperation {
+        let controller = ProcessController(cleanup: cleanup)
+        let events = AsyncThrowingStream<EngineEvent, Error> { continuation in
             Task.detached {
                 do {
-                    try process(url, choice: choice) { continuation.yield($0) }
+                    try run(arguments: arguments, controller: controller) { continuation.yield($0) }
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
                 }
             }
         }
+        return EventOperation(events: events) { controller.cancel() }
     }
 
-    private static func process(
-        _ url: URL,
-        choice: OutputChoice,
+    private static func run(
+        arguments: [String],
+        controller: ProcessController,
         onEvent: @escaping @Sendable (EngineEvent) -> Void
     ) throws {
-        var arguments: [String] = ["--events-json"]
-        if choice == .acapella { arguments.append("-a") }
-        if choice == .instrumental { arguments.append("-i") }
-        arguments.append(url.path)
         let process = configuredProcess(arguments: arguments)
+        process.environment?["STEMCRAFT_PROCESS_GROUP"] = "1"
         let output = Pipe()
         let logURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("stemcraft-\(UUID().uuidString).log")
@@ -219,6 +320,7 @@ enum Engine {
         process.standardOutput = output
         process.standardError = log
         try process.run()
+        controller.attach(process)
         var buffer = Data()
         var reportedError: String?
         while true {
@@ -240,11 +342,93 @@ enum Engine {
             }
         }
         process.waitUntilExit()
+        controller.finished()
         guard process.terminationStatus == 0 else {
             try log.synchronize()
             let message = try? String(contentsOf: logURL, encoding: .utf8)
             throw AppError(reportedError ?? message?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "Stem creation failed.")
         }
+    }
+
+    private static func audioCleanup(_ source: URL, choice: OutputChoice) -> [URL] {
+        let parent = source.deletingLastPathComponent()
+        let output = parent.appendingPathComponent("output")
+        let base = source.deletingPathExtension().lastPathComponent
+        var paths: [URL] = []
+        if choice == .both || choice == .acapella {
+            paths.append(output.appendingPathComponent("\(base) (Quality Time Acapella).mp3"))
+        }
+        if choice == .both || choice == .instrumental {
+            paths.append(output.appendingPathComponent("\(base) (Quality Time Instrumental).mp3"))
+        }
+        return paths
+    }
+}
+
+struct EventOperation: Sendable {
+    let events: AsyncThrowingStream<EngineEvent, Error>
+    let cancel: @Sendable () -> Void
+}
+
+final class ProcessController: @unchecked Sendable {
+    private let lock = NSLock()
+    private var process: Process?
+    private var cancelled = false
+    private let cleanup: [URL]
+    private let startedAt = Date()
+
+    init(cleanup: [URL]) { self.cleanup = cleanup }
+
+    func attach(_ process: Process) {
+        lock.lock()
+        self.process = process
+        let shouldCancel = cancelled
+        lock.unlock()
+        if shouldCancel { terminate(process) }
+    }
+
+    func cancel() {
+        lock.lock()
+        cancelled = true
+        let process = process
+        lock.unlock()
+        if let process { terminate(process) }
+    }
+
+    func finished() {
+        lock.lock()
+        let wasCancelled = cancelled
+        let processID = process?.processIdentifier
+        process = nil
+        lock.unlock()
+        guard wasCancelled else { return }
+        if let processID {
+            let work = cleanup.first?.deletingLastPathComponent().deletingLastPathComponent()
+                .appendingPathComponent(".stemcraft-work-\(processID)")
+            if let work { try? FileManager.default.removeItem(at: work) }
+        }
+        for url in cleanup where wasCreatedDuringOperation(url) {
+            try? FileManager.default.removeItem(at: url)
+        }
+    }
+
+    private func terminate(_ process: Process) {
+        let group = -pid_t(process.processIdentifier)
+        if Darwin.kill(group, SIGTERM) != 0, process.isRunning {
+            process.terminate()
+        }
+        DispatchQueue.global().asyncAfter(deadline: .now() + 0.1) {
+            if process.isRunning { Darwin.kill(group, SIGTERM) }
+        }
+        DispatchQueue.global().asyncAfter(deadline: .now() + 1) {
+            if process.isRunning { Darwin.kill(group, SIGKILL) }
+        }
+    }
+
+    private func wasCreatedDuringOperation(_ url: URL) -> Bool {
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
+              let modified = attributes[.modificationDate] as? Date else { return false }
+        return modified >= startedAt
     }
 }
 
@@ -269,6 +453,7 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 24) {
             header
+            if showsModelStatus { modelStatus }
             Group {
                 switch model.state {
                 case .empty: dropZone
@@ -282,8 +467,80 @@ struct ContentView: View {
             Spacer(minLength: 0)
         }
         .padding(32)
-        .frame(minWidth: 620, idealWidth: 680, minHeight: 460, idealHeight: 520)
+        .frame(minWidth: 620, idealWidth: 680, minHeight: 520, idealHeight: 600)
         .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var showsModelStatus: Bool {
+        switch model.state {
+        case .processing, .complete: false
+        default: true
+        }
+    }
+
+    @ViewBuilder
+    private var modelStatus: some View {
+        switch model.modelState {
+        case .missing:
+            HStack(spacing: 14) {
+                Image(systemName: "arrow.down.circle.fill").font(.title).foregroundStyle(.tint)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("One-time model download").font(.headline)
+                    Text("Stemcraft needs the fine-tuned htdemucs_ft audio model (about 333 MB). All processing stays local.")
+                        .font(.callout).foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button("Download Model") { model.downloadModel() }.buttonStyle(.borderedProminent)
+            }
+            .padding(16)
+            .background(.blue.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+        case .downloading(let status):
+            TimelineView(.periodic(from: .now, by: 1)) { context in
+                HStack(spacing: 14) {
+                    Image(systemName: "arrow.down.circle.fill").font(.title).foregroundStyle(.tint)
+                    VStack(alignment: .leading, spacing: 7) {
+                        Text(status.stage).font(.headline)
+                        if let percent = status.percent {
+                            ProgressView(value: Double(percent), total: 100)
+                            HStack {
+                                Text("\(percent)%")
+                                Spacer()
+                                if let remaining = status.estimatedRemaining(at: context.date) {
+                                    Text("About \(duration(remaining)) remaining")
+                                }
+                            }
+                            .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                        } else {
+                            ProgressView()
+                        }
+                        Button("Cancel") { model.cancelModelDownload() }
+                    }
+                }
+                .padding(16)
+                .background(.blue.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+            }
+        case .ready:
+            HStack(spacing: 9) {
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                Text("Audio model ready").font(.callout.weight(.medium))
+                Text("• All processing stays on this Mac").font(.callout).foregroundStyle(.secondary)
+                Spacer()
+            }
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .background(.green.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
+        case .failed(let message):
+            HStack(spacing: 12) {
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Model download failed").font(.headline)
+                    Text(message).font(.callout).foregroundStyle(.secondary).lineLimit(2)
+                }
+                Spacer()
+                Button("Try Again") { model.downloadModel() }
+            }
+            .padding(16)
+            .background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
+        }
     }
 
     private var header: some View {
@@ -300,7 +557,7 @@ struct ContentView: View {
             Text("FLAC, WAV, and AIFF recommended").foregroundStyle(.secondary)
             Button("Choose Track…") { model.chooseFile() }.buttonStyle(.borderedProminent)
         }
-        .frame(maxWidth: .infinity, minHeight: 280)
+        .frame(maxWidth: .infinity, minHeight: 250)
         .background(.quaternary.opacity(model.isDropTarget ? 0.9 : 0.45), in: RoundedRectangle(cornerRadius: 18))
         .overlay(RoundedRectangle(cornerRadius: 18).stroke(model.isDropTarget ? Color.accentColor : .secondary.opacity(0.25), lineWidth: 2))
         .onDrop(of: [.fileURL], isTargeted: $model.isDropTarget) { providers in
@@ -334,8 +591,13 @@ struct ContentView: View {
                 Button("Choose Another…") { model.chooseFile() }
                 Spacer()
                 if item.readiness != "blocked" {
-                    Button(item.readiness == "warning" ? "Process Anyway" : "Create Stems") { model.process(item) }
+                    Button(
+                        model.isDownloadingModel
+                            ? "Model Downloading…"
+                            : item.readiness == "warning" ? "Process Anyway" : "Create Stems"
+                    ) { model.process(item) }
                         .buttonStyle(.borderedProminent)
+                        .disabled(model.isDownloadingModel)
                 }
             }
         }
@@ -379,6 +641,7 @@ struct ContentView: View {
                 }
                 Text("Elapsed \(duration(context.date.timeIntervalSince(status.startedAt)))")
                     .font(.caption.monospacedDigit()).foregroundStyle(.tertiary)
+                Button("Cancel") { model.cancelProcessing(item) }
             }.frame(maxWidth: .infinity, minHeight: 260)
         }
     }

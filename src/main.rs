@@ -5,7 +5,7 @@ use std::io::{self, Write};
 use std::path::PathBuf;
 use std::time::Duration;
 use stemcraft::inspect::inspect_audio;
-use stemcraft::pipeline::{Event, Pipeline, Product, Reporter};
+use stemcraft::pipeline::{Event, Pipeline, Product, Reporter, prepare_model};
 
 struct TerminalReporter(Option<ProgressBar>);
 
@@ -86,6 +86,10 @@ struct Cli {
     #[arg(long, hide = true)]
     events_json: bool,
 
+    /// Download and cache the audio-separation model
+    #[arg(long, hide = true)]
+    prepare_model: bool,
+
     /// Create only an acapella
     #[arg(short = 'a', long, action = ArgAction::SetTrue, conflicts_with = "instrumental")]
     acapella: bool,
@@ -96,13 +100,15 @@ struct Cli {
 
     /// Source audio file
     #[arg(value_name = "TRACK")]
-    track: PathBuf,
+    track: Option<PathBuf>,
 }
 
 fn main() {
+    configure_process_group();
     let cli = Cli::parse();
     if cli.inspect_json {
-        match inspect_audio(&cli.track) {
+        let track = require_track(cli.track.as_deref());
+        match inspect_audio(track) {
             Ok(inspection) => println!("{}", serde_json::to_string(&inspection).unwrap()),
             Err(error) => {
                 eprintln!("{error}");
@@ -111,6 +117,22 @@ fn main() {
         }
         return;
     }
+    if cli.prepare_model {
+        let mut reporter = JsonReporter;
+        let result = prepare_model(&mut reporter);
+        match result {
+            Ok(path) => println!("{}", json!({ "type": "complete", "outputs": [path] })),
+            Err(error) => {
+                println!(
+                    "{}",
+                    json!({ "type": "error", "message": error.message, "guidance": error.guidance })
+                );
+                std::process::exit(1);
+            }
+        }
+        return;
+    }
+    let track = require_track(cli.track.as_deref());
     let products = if cli.acapella {
         vec![Product::Acapella]
     } else if cli.instrumental {
@@ -121,7 +143,7 @@ fn main() {
 
     if cli.events_json {
         let mut reporter = JsonReporter;
-        let result = run_pipeline(&cli.track, &products, &mut reporter);
+        let result = run_pipeline(track, &products, &mut reporter);
         match result {
             Ok(outputs) => {
                 println!("{}", json!({ "type": "complete", "outputs": outputs }));
@@ -143,7 +165,7 @@ fn main() {
 
     println!("Stemcraft\n");
     let mut reporter = TerminalReporter::new();
-    let result = run_pipeline(&cli.track, &products, &mut reporter);
+    let result = run_pipeline(track, &products, &mut reporter);
     reporter.clear();
 
     match result {
@@ -165,6 +187,24 @@ fn main() {
             std::process::exit(1);
         }
     }
+}
+
+fn configure_process_group() {
+    #[cfg(unix)]
+    if std::env::var_os("STEMCRAFT_PROCESS_GROUP").is_some() {
+        // The Mac app uses a dedicated process group so cancellation reaches
+        // Stemcraft and its active Demucs/FFmpeg descendants together.
+        unsafe {
+            libc::setpgid(0, 0);
+        }
+    }
+}
+
+fn require_track(track: Option<&std::path::Path>) -> &std::path::Path {
+    track.unwrap_or_else(|| {
+        eprintln!("A source track is required.");
+        std::process::exit(2);
+    })
 }
 
 fn run_pipeline(

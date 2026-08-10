@@ -79,20 +79,6 @@ output/
 └── Track Title (Quality Time Instrumental).mp3
 ```
 
-To use the shorter `sc` command on macOS or Linux, add an alias to `~/.zshrc`:
-
-```sh
-alias sc=stemcraft
-```
-
-Then open a new terminal and use:
-
-```sh
-sc "Track Title.flac"
-```
-
-`sc` will remain an optional alias rather than the official binary name because Windows already provides a system command with that name.
-
 ## When something goes wrong
 
 Audio from the wild can contain incomplete downloads, damaged containers, unusual codecs, malformed tags, or unexpected characters. Stemcraft checks the source before starting a long separation and keeps errors short. When possible, it distinguishes an application failure from a source-file, model, codec, permission, or disk-space problem and suggests what to try next.

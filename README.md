@@ -20,16 +20,17 @@ Stemcraft is an independent project and is not affiliated with or endorsed by Se
 - Shows each processing stage and turns noisy tool failures into concise, useful guidance.
 - Downloads the model weights once, then processes everything locally; your audio is never uploaded.
 
-## Install the CLI
+## Mac app
 
-Stemcraft is currently an early source release for macOS and Linux. Packaged binaries and a drag-to-Applications Mac app are planned.
+The initial Mac app supports Apple Silicon and macOS 14 or newer. It is currently built from source; a downloadable, notarized DMG is planned.
 
 ### Requirements
 
 - A current [Rust toolchain](https://rustup.rs/)
+- Apple Command Line Tools (`xcode-select --install`)
 - [FFmpeg](https://ffmpeg.org/) and FFprobe
 - The native [demucs-rs CLI](https://github.com/nikhilunni/demucs-rs)
-- A Metal-capable GPU on macOS, or a Vulkan-capable GPU on Linux
+- A Metal-capable Apple Silicon Mac
 
 On macOS, install FFmpeg with Homebrew:
 
@@ -37,15 +38,44 @@ On macOS, install FFmpeg with Homebrew:
 brew install ffmpeg
 ```
 
-Follow the demucs-rs native CLI build instructions, then ensure its `demucs` executable is available on your `PATH`. The fine-tuned audio model is approximately 333 MB and downloads automatically the first time it is used. Its model weights are cached on your computer, and separation runs locally on your GPU. Tracks are not sent to Demucs, Stemcraft, or another online service.
+Install the native Demucs CLI from its source checkout:
 
-Install Stemcraft from this checkout:
+```sh
+git clone https://github.com/nikhilunni/demucs-rs.git
+cd demucs-rs
+cargo install --path demucs-cli --locked
+```
+
+Return to the Stemcraft checkout, then build and open the app:
+
+```sh
+./scripts/build-mac-app.sh
+open build/Stemcraft.app
+```
+
+You can then move `build/Stemcraft.app` into `/Applications` if desired.
+
+The fine-tuned audio model is approximately 333 MB and downloads automatically on first use. It is cached for later runs. After that download, separation and encoding happen locally and your tracks never leave your Mac.
+
+### Use the app
+
+1. Drop a track into the Stemcraft window, or choose one from Finder.
+2. Review the source check. Lossless FLAC, WAV, and AIFF files are recommended. Compressed files receive a warning but can still be processed.
+3. Choose **Both**, **Acapella**, or **Instrumental**.
+4. Select **Create Stems** and follow the live separation progress.
+5. When processing finishes, reveal the results in Finder or process another track.
+
+Stemcraft blocks files it cannot process reliably, such as unreadable files, unsupported containers, files with no audio stream, and multichannel audio. Errors include concise guidance when possible.
+
+## CLI
+
+Install the command from this checkout:
 
 ```sh
 cargo install --path . --locked
 ```
 
-Confirm the command is available:
+Confirm it is available:
 
 ```sh
 stemcraft --help
@@ -59,8 +89,6 @@ export PATH="$HOME/.cargo/bin:$PATH"
 
 Add that line to `~/.zshrc` to keep it across new terminal sessions.
 
-## Use it
-
 Change into the folder containing a track, then run:
 
 ```sh
@@ -71,13 +99,17 @@ stemcraft "Track Title.flac"      # both
 
 Quotes are recommended for filenames containing spaces. Stemcraft passes paths directly to its tools, so punctuation and Unicode filenames are safe and are not interpreted as shell commands.
 
-Results appear beside the source:
+## Output
+
+The app and CLI use the same output behavior. Results are placed in an `output/` directory beside the source track:
 
 ```text
 output/
 ├── Track Title (Quality Time Acapella).mp3
 └── Track Title (Quality Time Instrumental).mp3
 ```
+
+Files are encoded as 320 kbps MP3s. Source metadata is copied and the appropriate Stemcraft suffix is added to the track title.
 
 ## When something goes wrong
 
@@ -92,15 +124,6 @@ cargo clippy -- -D warnings
 cargo build --release
 ```
 
-Build the local Apple Silicon Mac app with Apple Command Line Tools:
-
-```sh
-./scripts/build-mac-app.sh
-open build/Stemcraft.app
-```
-
 This development build uses Demucs and FFmpeg from the local machine. A distributable release will bundle compatible tools and download only the audio-separation model on first use.
-
-The processing pipeline is separate from its terminal presentation and emits structured status events. A future Mac app can present the same workflow with drag-and-drop, queue progress, notifications, and Finder actions without replacing the audio engine.
 
 Longer term, Stemcraft may support multiple audio-separation models, since different models can perform better on different kinds of music. The goal is model choice without model complexity: strong defaults first, with other local models available when a difficult track benefits from another approach.

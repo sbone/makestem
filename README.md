@@ -28,6 +28,8 @@ FFmpeg, and FFprobe; friends will not need Homebrew, Rust, or Terminal.
 
 ### Build from source
 
+Building the app itself currently requires:
+
 - A current [Rust toolchain](https://rustup.rs/)
 - Apple Command Line Tools (`xcode-select --install`)
 - The native [demucs-rs CLI](https://github.com/nikhilunni/demucs-rs)
@@ -54,9 +56,13 @@ Return to the Stemcraft checkout, then build and open the app:
 open build/Stemcraft.app
 ```
 
-You can then move `build/Stemcraft.app` into `/Applications` if desired.
+This development build is ad-hoc signed for local testing. You can move it
+into `/Applications` on the Mac that built it.
 
-The fine-tuned audio model is approximately 333 MB and downloads automatically on first use. It is cached for later runs. After that download, separation and encoding happen locally and your tracks never leave your Mac.
+The app identifies a missing model on first run and offers to download the
+336 MB `htdemucs_ft` model. Stemcraft verifies the completed download and
+caches it for later runs. After that, separation and encoding happen locally
+and your tracks never leave your Mac.
 
 ### Use the app
 
@@ -65,6 +71,10 @@ The fine-tuned audio model is approximately 333 MB and downloads automatically o
 3. Choose **Both**, **Acapella**, or **Instrumental**.
 4. Select **Create Stems** and follow the live separation progress.
 5. When processing finishes, reveal the results in Finder or process another track.
+
+Model downloads and audio processing can be cancelled. Stemcraft removes
+incomplete downloads, temporary stems, and partial output from a cancelled
+job so it is safe to retry.
 
 Stemcraft blocks files it cannot process reliably, such as unreadable files, unsupported containers, files with no audio stream, and multichannel audio. Errors include concise guidance when possible.
 

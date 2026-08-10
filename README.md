@@ -16,26 +16,27 @@ Stemcraft is an independent project and is not affiliated with or endorsed by Se
 - Uses the fine-tuned `htdemucs_ft` audio-separation model for separation quality.
 - Combines the drums, bass, and other stems into one instrumental.
 - Produces 320 kbps MP3 files in an `output/` directory beside the source.
-- Copies source metadata and adds `(Quality Time Acapella)` or `(Quality Time Instrumental)` to the title.
+- Copies source metadata and adds `(Acapella)` or `(Instrumental)` to the title.
 - Shows each processing stage and turns noisy tool failures into concise, useful guidance.
 - Downloads the model weights once, then processes everything locally; your audio is never uploaded.
 
 ## Mac app
 
-The initial Mac app supports Apple Silicon and macOS 14 or newer. It is currently built from source; a downloadable, notarized DMG is planned.
+The initial Mac app supports Apple Silicon and macOS 14 or newer. A
+downloadable, notarized DMG is planned. The app bundle includes Demucs,
+FFmpeg, and FFprobe; friends will not need Homebrew, Rust, or Terminal.
 
-### Requirements
+### Build from source
 
 - A current [Rust toolchain](https://rustup.rs/)
 - Apple Command Line Tools (`xcode-select --install`)
-- [FFmpeg](https://ffmpeg.org/) and FFprobe
 - The native [demucs-rs CLI](https://github.com/nikhilunni/demucs-rs)
 - A Metal-capable Apple Silicon Mac
 
-On macOS, install FFmpeg with Homebrew:
+Build Stemcraft's pinned, self-contained FFmpeg tools:
 
 ```sh
-brew install ffmpeg
+./scripts/build-ffmpeg-macos.sh
 ```
 
 Install the native Demucs CLI from its source checkout:
@@ -105,8 +106,8 @@ The app and CLI use the same output behavior. Results are placed in an `output/`
 
 ```text
 output/
-├── Track Title (Quality Time Acapella).mp3
-└── Track Title (Quality Time Instrumental).mp3
+├── Track Title (Acapella).mp3
+└── Track Title (Instrumental).mp3
 ```
 
 Files are encoded as 320 kbps MP3s. Source metadata is copied and the appropriate Stemcraft suffix is added to the track title.
@@ -124,6 +125,8 @@ cargo clippy -- -D warnings
 cargo build --release
 ```
 
-This development build uses Demucs and FFmpeg from the local machine. A distributable release will bundle compatible tools and download only the audio-separation model on first use.
+The Mac build bundles compatible Demucs, FFmpeg, and FFprobe executables. A
+release downloads only the audio-separation model on first use, verifies its
+integrity, and then processes tracks locally.
 
 Longer term, Stemcraft may support multiple audio-separation models, since different models can perform better on different kinds of music. The goal is model choice without model complexity: strong defaults first, with other local models available when a difficult track benefits from another approach.

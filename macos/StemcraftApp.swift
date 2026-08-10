@@ -224,13 +224,16 @@ final class AppModel: ObservableObject {
 }
 
 enum Engine {
+    static let modelSize: UInt64 = 336_125_008
+
     static var modelIsReady: Bool {
         let home = ProcessInfo.processInfo.environment["HOME"]
             ?? FileManager.default.homeDirectoryForCurrentUser.path
-        return FileManager.default.fileExists(
-            atPath: URL(fileURLWithPath: home)
-                .appendingPathComponent("Library/Caches/demucs-rs/htdemucs_ft.safetensors").path
-        )
+        let path = URL(fileURLWithPath: home)
+            .appendingPathComponent("Library/Caches/demucs-rs/htdemucs_ft.safetensors").path
+        guard let attributes = try? FileManager.default.attributesOfItem(atPath: path),
+              let size = attributes[.size] as? NSNumber else { return false }
+        return size.uint64Value == modelSize
     }
 
     static var executable: URL {
@@ -246,8 +249,10 @@ enum Engine {
         process.arguments = arguments
         var environment = ProcessInfo.processInfo.environment
         let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let bundledTools = Bundle.main.bundleURL
+            .appendingPathComponent("Contents/Resources/bin").path
         environment["PATH"] = [
-            "\(home)/.cargo/bin", "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"
+            bundledTools, "\(home)/.cargo/bin", "/opt/homebrew/bin", "/usr/local/bin", "/usr/bin", "/bin"
         ].joined(separator: ":")
         process.environment = environment
         return process
@@ -356,10 +361,10 @@ enum Engine {
         let base = source.deletingPathExtension().lastPathComponent
         var paths: [URL] = []
         if choice == .both || choice == .acapella {
-            paths.append(output.appendingPathComponent("\(base) (Quality Time Acapella).mp3"))
+            paths.append(output.appendingPathComponent("\(base) (Acapella).mp3"))
         }
         if choice == .both || choice == .instrumental {
-            paths.append(output.appendingPathComponent("\(base) (Quality Time Instrumental).mp3"))
+            paths.append(output.appendingPathComponent("\(base) (Instrumental).mp3"))
         }
         return paths
     }
@@ -698,6 +703,5 @@ struct StemcraftApp: App {
     var body: some Scene {
         WindowGroup { ContentView() }
             .windowResizability(.contentSize)
-        Settings { Text("Stemcraft settings are coming soon.").padding(32) }
     }
 }

@@ -1,3 +1,4 @@
+use sha2::{Digest, Sha256};
 use std::{
     ffi::OsStr,
     fs, io,
@@ -10,6 +11,9 @@ use std::{
 const MODEL: &str = "htdemucs_ft";
 const BITRATE: &str = "320k";
 const MODEL_FILENAME: &str = "htdemucs_ft.safetensors";
+const MODEL_SIZE: u64 = 336_125_008;
+const MODEL_SHA256: &str = "255c2650d26537ce4887c9c4cf08c6d4896fad2fecc0b78dc5b875b117bcc575";
+const MODEL_DOWNLOAD_SPACE: u64 = 500 * 1024 * 1024;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Product {
@@ -26,7 +30,7 @@ impl Product {
     }
 
     fn suffix(self) -> String {
-        format!("Quality Time {}", self.label())
+        self.label().to_owned()
     }
 }
 
@@ -152,6 +156,7 @@ impl Pipeline {
         products: &[Product],
         reporter: &mut impl Reporter,
     ) -> Result<Vec<PathBuf>> {
+        prepare_model(reporter)?;
         let only_acapella = products == [Product::Acapella];
         let mut args = vec![self.input.as_os_str().to_owned(), "-m".into(), MODEL.into()];
         if only_acapella {
@@ -251,11 +256,27 @@ pub fn prepare_model(reporter: &mut impl Reporter) -> Result<PathBuf> {
             "Check that your HOME directory is configured and writable.",
         )
     })?;
-    if path.is_file() {
+    if path.is_file() && validate_model(&path).is_ok() {
         reporter.report(Event::StageCompleted(
             "Audio-separation model ready".to_owned(),
         ));
         return Ok(path);
+    }
+
+    if path.exists() {
+        reporter.report(Event::StageStarted(
+            "Replacing an incomplete audio-separation model".to_owned(),
+        ));
+        fs::remove_file(&path).map_err(|e| {
+            PipelineError::guided(
+                format!("Could not replace the incomplete model: {e}"),
+                "Remove the model from Library/Caches/demucs-rs, then try again.",
+            )
+        })?;
+    }
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| PipelineError::new(e.to_string()))?;
+        ensure_download_space(parent)?;
     }
 
     require_tool(
@@ -281,6 +302,10 @@ pub fn prepare_model(reporter: &mut impl Reporter) -> Result<PathBuf> {
     ];
     let result = run_demucs_with_label(&args, "Downloading audio-separation model", reporter);
     if path.is_file() {
+        if let Err(error) = validate_model(&path) {
+            let _ = fs::remove_file(&path);
+            return Err(error);
+        }
         reporter.report(Event::StageCompleted(
             "Audio-separation model ready".to_owned(),
         ));
@@ -288,6 +313,54 @@ pub fn prepare_model(reporter: &mut impl Reporter) -> Result<PathBuf> {
     } else {
         result.map(|_| path)
     }
+}
+
+fn validate_model(path: &Path) -> Result<()> {
+    let metadata = fs::metadata(path).map_err(|e| PipelineError::new(e.to_string()))?;
+    if metadata.len() != MODEL_SIZE {
+        return Err(PipelineError::guided(
+            "The audio-separation model download is incomplete.",
+            "Try the model download again. Stemcraft will replace the partial file.",
+        ));
+    }
+    let file = fs::File::open(path).map_err(|e| PipelineError::new(e.to_string()))?;
+    let mut reader = BufReader::new(file);
+    let mut hasher = Sha256::new();
+    io::copy(&mut reader, &mut hasher).map_err(|e| PipelineError::new(e.to_string()))?;
+    let digest = format!("{:x}", hasher.finalize());
+    if digest != MODEL_SHA256 {
+        return Err(PipelineError::guided(
+            "The audio-separation model failed its integrity check.",
+            "Try the model download again. Stemcraft will replace the damaged file.",
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn ensure_download_space(path: &Path) -> Result<()> {
+    use std::os::unix::ffi::OsStrExt;
+    let path = std::ffi::CString::new(path.as_os_str().as_bytes()).map_err(|_| {
+        PipelineError::new("The model cache path contains an unsupported character.")
+    })?;
+    let mut stats = std::mem::MaybeUninit::<libc::statvfs>::uninit();
+    let result = unsafe { libc::statvfs(path.as_ptr(), stats.as_mut_ptr()) };
+    if result == 0 {
+        let stats = unsafe { stats.assume_init() };
+        let available = u64::from(stats.f_bavail) * stats.f_frsize;
+        if available < MODEL_DOWNLOAD_SPACE {
+            return Err(PipelineError::guided(
+                "There is not enough free space to download the audio-separation model.",
+                "Free at least 500 MB on this Mac, then try again.",
+            ));
+        }
+    }
+    Ok(())
+}
+
+#[cfg(not(unix))]
+fn ensure_download_space(_path: &Path) -> Result<()> {
+    Ok(())
 }
 
 fn require_tool(tool: &str, guidance: &str) -> Result<()> {

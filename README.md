@@ -1,14 +1,14 @@
-# Stemcraft
+# MakeStem
 
-**Find the blend live. Finish it with Stemcraft.**
+**Find the blend live. Finish it with MakeStem.**
 
-Real-time tools such as Serato Stems are invaluable for experimenting: try an idea immediately, discover an unexpected pairing, and find the blends worth finishing. When a real-time separation sounds artifact-heavy or gets part of a track wrong, Stemcraft takes the slower, higher-quality route.
+Real-time tools such as Serato Stems are invaluable for experimenting: try an idea immediately, discover an unexpected pairing, and find the blends worth finishing. When a real-time separation sounds artifact-heavy or gets part of a track wrong, MakeStem takes the slower, higher-quality route.
 
-Stemcraft creates pre-processed acapellas and instrumentals for recorded and shareable DJ blends. It runs a fine-tuned Demucs audio-separation model, mixes instrumental stems, encodes 320 kbps MP3s, preserves metadata, and keeps the results organized. After the model is downloaded, every operation runs locally on your computer and your tracks never leave it.
+MakeStem creates pre-processed acapellas and instrumentals for recorded and shareable DJ blends. It runs a fine-tuned Demucs audio-separation model, mixes instrumental stems, encodes 320 kbps MP3s, preserves metadata, and keeps the results organized. After the model is downloaded, every operation runs locally on your computer and your tracks never leave it.
 
-> Serato Stems helps you discover the blend. Stemcraft helps you finish it.
+> Serato Stems helps you discover the blend. MakeStem helps you finish it.
 
-Stemcraft is an independent project and is not affiliated with or endorsed by Serato.
+MakeStem is an independent project and is not affiliated with or endorsed by Serato.
 
 ## What it does
 
@@ -35,7 +35,7 @@ Building the app itself currently requires:
 - The native [demucs-rs CLI](https://github.com/nikhilunni/demucs-rs)
 - A Metal-capable Apple Silicon Mac
 
-Build Stemcraft's pinned, self-contained FFmpeg tools:
+Build MakeStem's pinned, self-contained FFmpeg tools:
 
 ```sh
 ./scripts/build-ffmpeg-macos.sh
@@ -49,34 +49,34 @@ cd demucs-rs
 cargo install --path demucs-cli --locked
 ```
 
-Return to the Stemcraft checkout, then build and open the app:
+Return to the MakeStem checkout, then build and open the app:
 
 ```sh
 ./scripts/build-mac-app.sh
-open build/Stemcraft.app
+open build/MakeStem.app
 ```
 
 This development build is ad-hoc signed for local testing. You can move it
 into `/Applications` on the Mac that built it.
 
 The app identifies a missing model on first run and offers to download the
-336 MB `htdemucs_ft` model. Stemcraft verifies the completed download and
+336 MB `htdemucs_ft` model. MakeStem verifies the completed download and
 caches it for later runs. After that, separation and encoding happen locally
 and your tracks never leave your Mac.
 
 ### Use the app
 
-1. Drop a track into the Stemcraft window, or choose one from Finder.
+1. Drop a track into the MakeStem window, or choose one from Finder.
 2. Review the source check. Lossless FLAC, WAV, and AIFF files are recommended. Compressed files receive a warning but can still be processed.
 3. Choose **Both**, **Acapella**, or **Instrumental**.
 4. Select **Create Stems** and follow the live separation progress.
 5. When processing finishes, reveal the results in Finder or process another track.
 
-Model downloads and audio processing can be cancelled. Stemcraft removes
+Model downloads and audio processing can be cancelled. MakeStem removes
 incomplete downloads, temporary stems, and partial output from a cancelled
 job so it is safe to retry.
 
-Stemcraft blocks files it cannot process reliably, such as unreadable files, unsupported containers, files with no audio stream, and multichannel audio. Errors include concise guidance when possible.
+MakeStem blocks files it cannot process reliably, such as unreadable files, unsupported containers, files with no audio stream, and multichannel audio. Errors include concise guidance when possible.
 
 ## CLI
 
@@ -89,7 +89,7 @@ cargo install --path . --locked
 Confirm it is available:
 
 ```sh
-stemcraft --help
+makestem --help
 ```
 
 If your shell cannot find it, add Cargo's binary directory to your `PATH`:
@@ -103,12 +103,12 @@ Add that line to `~/.zshrc` to keep it across new terminal sessions.
 Change into the folder containing a track, then run:
 
 ```sh
-stemcraft -a "Track Title.flac"   # acapella only
-stemcraft -i "Track Title.flac"   # instrumental only
-stemcraft "Track Title.flac"      # both
+makestem -a "Track Title.flac"   # acapella only
+makestem -i "Track Title.flac"   # instrumental only
+makestem "Track Title.flac"      # both
 ```
 
-Quotes are recommended for filenames containing spaces. Stemcraft passes paths directly to its tools, so punctuation and Unicode filenames are safe and are not interpreted as shell commands.
+Quotes are recommended for filenames containing spaces. MakeStem passes paths directly to its tools, so punctuation and Unicode filenames are safe and are not interpreted as shell commands.
 
 ## Output
 
@@ -120,11 +120,11 @@ output/
 └── Track Title (Instrumental).mp3
 ```
 
-Files are encoded as 320 kbps MP3s. Source metadata is copied and the appropriate Stemcraft suffix is added to the track title.
+Files are encoded as 320 kbps MP3s. Source metadata is copied and the appropriate output suffix is added to the track title.
 
 ## When something goes wrong
 
-Audio from the wild can contain incomplete downloads, damaged containers, unusual codecs, malformed tags, or unexpected characters. Stemcraft checks the source before starting a long separation and keeps errors short. When possible, it distinguishes an application failure from a source-file, model, codec, permission, or disk-space problem and suggests what to try next.
+Audio from the wild can contain incomplete downloads, damaged containers, unusual codecs, malformed tags, or unexpected characters. MakeStem checks the source before starting a long separation and keeps errors short. When possible, it distinguishes an application failure from a source-file, model, codec, permission, or disk-space problem and suggests what to try next.
 
 ## Development
 
@@ -139,4 +139,4 @@ The Mac build bundles compatible Demucs, FFmpeg, and FFprobe executables. A
 release downloads only the audio-separation model on first use, verifies its
 integrity, and then processes tracks locally.
 
-Longer term, Stemcraft may support multiple audio-separation models, since different models can perform better on different kinds of music. The goal is model choice without model complexity: strong defaults first, with other local models available when a difficult track benefits from another approach.
+Longer term, MakeStem may support multiple audio-separation models, since different models can perform better on different kinds of music. The goal is model choice without model complexity: strong defaults first, with other local models available when a difficult track benefits from another approach.

@@ -237,10 +237,10 @@ enum Engine {
     }
 
     static var executable: URL {
-        let bundled = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/stemcraft")
+        let bundled = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/makestem")
         if FileManager.default.isExecutableFile(atPath: bundled.path) { return bundled }
         return URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-            .appendingPathComponent("target/release/stemcraft")
+            .appendingPathComponent("target/release/makestem")
     }
 
     static func configuredProcess(arguments: [String]) -> Process {
@@ -312,10 +312,10 @@ enum Engine {
         onEvent: @escaping @Sendable (EngineEvent) -> Void
     ) throws {
         let process = configuredProcess(arguments: arguments)
-        process.environment?["STEMCRAFT_PROCESS_GROUP"] = "1"
+        process.environment?["MAKESTEM_PROCESS_GROUP"] = "1"
         let output = Pipe()
         let logURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent("stemcraft-\(UUID().uuidString).log")
+            .appendingPathComponent("makestem-\(UUID().uuidString).log")
         FileManager.default.createFile(atPath: logURL.path, contents: nil)
         let log = try FileHandle(forWritingTo: logURL)
         defer {
@@ -409,7 +409,7 @@ final class ProcessController: @unchecked Sendable {
         guard wasCancelled else { return }
         if let processID {
             let work = cleanup.first?.deletingLastPathComponent().deletingLastPathComponent()
-                .appendingPathComponent(".stemcraft-work-\(processID)")
+                .appendingPathComponent(".makestem-work-\(processID)")
             if let work { try? FileManager.default.removeItem(at: work) }
         }
         for url in cleanup where wasCreatedDuringOperation(url) {
@@ -454,11 +454,12 @@ struct AppError: LocalizedError {
 
 struct ContentView: View {
     @StateObject private var model = AppModel()
+    @State private var showsModelInfo = false
 
     var body: some View {
         VStack(spacing: 24) {
             header
-            if showsModelStatus { modelStatus }
+            if showsModelAction { modelAction }
             Group {
                 switch model.state {
                 case .empty: dropZone
@@ -476,22 +477,23 @@ struct ContentView: View {
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
-    private var showsModelStatus: Bool {
+    private var showsModelAction: Bool {
+        if case .ready = model.modelState { return false }
         switch model.state {
-        case .processing, .complete: false
-        default: true
+        case .processing, .complete: return false
+        default: return true
         }
     }
 
     @ViewBuilder
-    private var modelStatus: some View {
+    private var modelAction: some View {
         switch model.modelState {
         case .missing:
             HStack(spacing: 14) {
                 Image(systemName: "arrow.down.circle.fill").font(.title).foregroundStyle(.tint)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("One-time model download").font(.headline)
-                    Text("Stemcraft needs the fine-tuned htdemucs_ft audio model (about 333 MB). All processing stays local.")
+                    Text("MakeStem needs the fine-tuned htdemucs_ft audio model (about 336 MB). All processing stays local.")
                         .font(.callout).foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -525,14 +527,7 @@ struct ContentView: View {
                 .background(.blue.opacity(0.08), in: RoundedRectangle(cornerRadius: 14))
             }
         case .ready:
-            HStack(spacing: 9) {
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                Text("Audio model ready").font(.callout.weight(.medium))
-                Text("• All processing stays on this Mac").font(.callout).foregroundStyle(.secondary)
-                Spacer()
-            }
-            .padding(.horizontal, 14).padding(.vertical, 10)
-            .background(.green.opacity(0.07), in: RoundedRectangle(cornerRadius: 12))
+            EmptyView()
         case .failed(let message):
             HStack(spacing: 12) {
                 Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
@@ -549,17 +544,104 @@ struct ContentView: View {
     }
 
     private var header: some View {
-        VStack(spacing: 6) {
-            Text("Stemcraft").font(.system(size: 30, weight: .bold, design: .rounded))
-            Text("Find the blend live. Finish it with Stemcraft.").foregroundStyle(.secondary)
+        HStack(alignment: .center, spacing: 24) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("MakeStem").font(.system(size: 30, weight: .bold, design: .rounded))
+                Text("Find the blend live. Finish it with MakeStem.").foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 16)
+            headerModelStatus
         }
+        .frame(maxWidth: .infinity)
+    }
+
+    @ViewBuilder
+    private var headerModelStatus: some View {
+        HStack(spacing: 9) {
+            switch model.modelState {
+            case .ready:
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Audio model ready").font(.callout.weight(.semibold))
+                    Text("Processing stays local").font(.caption).foregroundStyle(.secondary)
+                }
+            case .missing:
+                Image(systemName: "arrow.down.circle").foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Audio model needed").font(.callout.weight(.semibold))
+                    Text("One-time download").font(.caption).foregroundStyle(.secondary)
+                }
+            case .downloading(let status):
+                ProgressView().controlSize(.small)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Downloading model").font(.callout.weight(.semibold))
+                    Text(status.percent.map { "\($0)% complete" } ?? "Preparing…")
+                        .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                }
+            case .failed:
+                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Model unavailable").font(.callout.weight(.semibold))
+                    Text("Download needs attention").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            Button {
+                showsModelInfo.toggle()
+            } label: {
+                Image(systemName: "info.circle")
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .help("About the audio model")
+            .popover(isPresented: $showsModelInfo, arrowEdge: .bottom) {
+                modelInfo
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(.quaternary.opacity(0.55), in: RoundedRectangle(cornerRadius: 11))
+    }
+
+    private var modelInfo: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 9) {
+                Image(systemName: "waveform.badge.magnifyingglass")
+                    .font(.title2)
+                    .foregroundStyle(.tint)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("htdemucs_ft").font(.headline)
+                    Text("Fine-tuned Demucs audio-separation model")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Text("This model analyzes a track and separates vocals, drums, bass, and other sounds. MakeStem uses those parts to create its acapellas and instrumentals.")
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text("The model is downloaded from a public repository hosted by Hugging Face, a platform for sharing machine-learning models. Once downloaded, it runs locally and your tracks are never uploaded.")
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Link(
+                "View model source on Hugging Face",
+                destination: URL(string: "https://huggingface.co/set-soft/audio_separation")!
+            )
+        }
+        .font(.callout)
+        .padding(18)
+        .frame(width: 360)
     }
 
     private var dropZone: some View {
         VStack(spacing: 14) {
             Image(systemName: "waveform.badge.plus").font(.system(size: 44)).foregroundStyle(.tint)
             Text("Drop a track here").font(.title2.weight(.semibold))
-            Text("FLAC, WAV, and AIFF recommended").foregroundStyle(.secondary)
+            Text("Create an acapella, instrumental, or both")
+                .font(.callout.weight(.medium))
+            Text("FLAC, WAV, and AIFF recommended")
+                .font(.callout)
+                .foregroundStyle(.secondary)
             Button("Choose Track…") { model.chooseFile() }.buttonStyle(.borderedProminent)
         }
         .frame(maxWidth: .infinity, minHeight: 250)
@@ -658,7 +740,7 @@ struct ContentView: View {
             Text("Your files are ready in the output folder.").foregroundStyle(.secondary)
             HStack {
                 Button("Process Another") { model.reset() }
-                Button("Quit Stemcraft") { NSApplication.shared.terminate(nil) }
+                Button("Quit MakeStem") { NSApplication.shared.terminate(nil) }
                 Button("Reveal in Finder") { model.reveal(item) }.buttonStyle(.borderedProminent)
             }
         }.frame(maxWidth: .infinity, minHeight: 260)
@@ -699,7 +781,7 @@ struct ContentView: View {
 }
 
 @main
-struct StemcraftApp: App {
+struct MakeStemApp: App {
     var body: some Scene {
         WindowGroup { ContentView() }
             .windowResizability(.contentSize)

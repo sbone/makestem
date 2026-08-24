@@ -121,7 +121,7 @@ pub fn inspect_audio(path: &Path) -> Result<AudioInspection, String> {
     } else {
         (
             Readiness::Warning,
-            "Compressed source. Stemcraft can process it, but a lossless source may produce cleaner stems."
+            "Compressed source. MakeStem can process it, but a lossless source may produce cleaner stems."
                 .to_owned(),
         )
     };

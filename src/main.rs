@@ -1,11 +1,11 @@
 use clap::{ArgAction, Parser};
 use indicatif::{ProgressBar, ProgressStyle};
+use makestem::inspect::inspect_audio;
+use makestem::pipeline::{Event, Pipeline, Product, Reporter, prepare_model};
 use serde_json::json;
 use std::io::{self, Write};
 use std::path::PathBuf;
 use std::time::Duration;
-use stemcraft::inspect::inspect_audio;
-use stemcraft::pipeline::{Event, Pipeline, Product, Reporter, prepare_model};
 
 struct TerminalReporter(Option<ProgressBar>);
 
@@ -73,7 +73,7 @@ impl Reporter for TerminalReporter {
 
 #[derive(Parser, Debug)]
 #[command(
-    name = "stemcraft",
+    name = "makestem",
     version,
     about = "Create DJ-ready stems from a full mix"
 )]
@@ -163,7 +163,7 @@ fn main() {
         return;
     }
 
-    println!("Stemcraft\n");
+    println!("MakeStem\n");
     let mut reporter = TerminalReporter::new();
     let result = run_pipeline(track, &products, &mut reporter);
     reporter.clear();
@@ -191,9 +191,9 @@ fn main() {
 
 fn configure_process_group() {
     #[cfg(unix)]
-    if std::env::var_os("STEMCRAFT_PROCESS_GROUP").is_some() {
+    if std::env::var_os("MAKESTEM_PROCESS_GROUP").is_some() {
         // The Mac app uses a dedicated process group so cancellation reaches
-        // Stemcraft and its active Demucs/FFmpeg descendants together.
+        // MakeStem and its active Demucs/FFmpeg descendants together.
         unsafe {
             libc::setpgid(0, 0);
         }
@@ -211,7 +211,7 @@ fn run_pipeline(
     track: &std::path::Path,
     products: &[Product],
     reporter: &mut impl Reporter,
-) -> stemcraft::pipeline::Result<Vec<PathBuf>> {
+) -> makestem::pipeline::Result<Vec<PathBuf>> {
     reporter.report(Event::StageStarted("Checking required tools".to_owned()));
     Pipeline::preflight()?;
     reporter.report(Event::StageCompleted("Checking required tools".to_owned()));

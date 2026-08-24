@@ -98,7 +98,7 @@ impl Pipeline {
         validate_audio(&input)?;
         let parent = input.parent().unwrap_or_else(|| Path::new("."));
         let output_dir = parent.join("output");
-        let work_dir = parent.join(format!(".stemcraft-work-{}", std::process::id()));
+        let work_dir = parent.join(format!(".makestem-work-{}", std::process::id()));
         let title = clean_tag(&read_title(&input).unwrap_or_else(|| {
             input
                 .file_stem()
@@ -284,11 +284,11 @@ pub fn prepare_model(reporter: &mut impl Reporter) -> Result<PathBuf> {
         "Install the native Demucs CLI and ensure `demucs` is on your PATH.",
     )?;
     let missing_input = std::env::temp_dir().join(format!(
-        ".stemcraft-model-download-{}-input.wav",
+        ".makestem-model-download-{}-input.wav",
         std::process::id()
     ));
     let unused_output = std::env::temp_dir().join(format!(
-        ".stemcraft-model-download-{}-output",
+        ".makestem-model-download-{}-output",
         std::process::id()
     ));
     let args = vec![
@@ -320,7 +320,7 @@ fn validate_model(path: &Path) -> Result<()> {
     if metadata.len() != MODEL_SIZE {
         return Err(PipelineError::guided(
             "The audio-separation model download is incomplete.",
-            "Try the model download again. Stemcraft will replace the partial file.",
+            "Try the model download again. MakeStem will replace the partial file.",
         ));
     }
     let file = fs::File::open(path).map_err(|e| PipelineError::new(e.to_string()))?;
@@ -331,7 +331,7 @@ fn validate_model(path: &Path) -> Result<()> {
     if digest != MODEL_SHA256 {
         return Err(PipelineError::guided(
             "The audio-separation model failed its integrity check.",
-            "Try the model download again. Stemcraft will replace the damaged file.",
+            "Try the model download again. MakeStem will replace the damaged file.",
         ));
     }
     Ok(())
@@ -735,7 +735,7 @@ fn diagnostic_guidance(stderr: &str) -> Option<String> {
     let message = if text.contains("no space left on device") {
         "The disk is full. Free some space on the source/output volume and retry."
     } else if text.contains("permission denied") || text.contains("operation not permitted") {
-        "Stemcraft cannot read the source or write the result. Check file and folder permissions."
+        "MakeStem cannot read the source or write the result. Check file and folder permissions."
     } else if text.contains("invalid data found")
         || text.contains("moov atom not found")
         || text.contains("end of file")

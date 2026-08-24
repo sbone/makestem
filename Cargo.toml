@@ -1,12 +1,12 @@
 [package]
-name = "stemcraft"
+name = "makestem"
 version = "0.1.0"
 edition = "2024"
 description = "Create DJ-ready acapellas and instrumentals with Demucs and FFmpeg"
 license = "MIT"
 
 [[bin]]
-name = "stemcraft"
+name = "makestem"
 path = "src/main.rs"
 
 [dependencies]

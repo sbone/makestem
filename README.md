@@ -129,11 +129,24 @@ Audio from the wild can contain incomplete downloads, damaged containers, unusua
 ## Development
 
 ```sh
-cargo run -- --help
-cargo test
-cargo clippy -- -D warnings
-cargo build --release
+./scripts/test-all.sh
 ```
+
+This runs formatting, Rust unit and CLI contract tests, strict linting, the
+complete Mac app build, and packaged-app validation. The bundle audit checks
+deployment targets, architecture, bundled tools and codecs, non-system
+linkage, licenses, metadata, and code signatures.
+
+An optional real Demucs smoke test creates an acapella from a supplied track:
+
+```sh
+MAKESTEM_REAL_AUDIO_SMOKE=1 \
+MAKESTEM_SMOKE_TRACK="/path/to/short-test.flac" \
+./scripts/test-all.sh
+```
+
+The real-audio tier is opt-in because it is slow and writes an acapella to the
+track's neighboring `output/` directory. Use a short, disposable test file.
 
 The Mac build bundles compatible Demucs, FFmpeg, and FFprobe executables. A
 release downloads only the audio-separation model on first use, verifies its

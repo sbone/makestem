@@ -796,69 +796,6 @@ impl NonemptyString for String {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn cleans_control_characters_from_tags_and_messages() {
-        assert_eq!(clean_tag("A\nTitle\u{1b}[31m"), "A Title [31m");
-        assert_eq!(clean_tag("\n\t"), "Untitled");
-    }
-
-    #[test]
-    fn selects_concise_diagnostics() {
-        let stderr =
-            "ffmpeg version 8\nconfiguration: noisy\nFirst useful line\nLast useful line\n";
-        assert_eq!(
-            useful_diagnostic(stderr),
-            "First useful line — Last useful line"
-        );
-        assert_eq!(
-            demucs_progress("[####>---] 12.5 MiB/333.0 MiB (21s)"),
-            Some((
-                "Downloading audio-separation model • 13 of 349 MB".to_owned(),
-                Some(3)
-            ))
-        );
-    }
-
-    #[test]
-    fn gives_guidance_for_common_external_failures() {
-        assert!(
-            diagnostic_guidance("No space left on device")
-                .unwrap()
-                .contains("disk is full")
-        );
-        assert!(
-            diagnostic_guidance("Invalid data found")
-                .unwrap()
-                .contains("damaged")
-        );
-        assert!(diagnostic_guidance("unclassified failure").is_none());
-    }
-
-    #[test]
-    fn recognizes_demucs_phases_and_percentages() {
-        assert_eq!(
-            demucs_progress("Loading cached model: htdemucs_ft"),
-            Some(("Loading cached audio-separation model".to_owned(), None))
-        );
-        assert_eq!(
-            demucs_progress("\u{1b}[2KSeparating  42%"),
-            Some(("Analyzing and separating audio".to_owned(), Some(42)))
-        );
-        assert_eq!(demucs_progress("unrelated diagnostic"), None);
-        assert_eq!(
-            demucs_progress("Separating [####>---] 23/72 (1m 12s) chunk 1/2"),
-            Some((
-                "Analyzing audio • step 23 of 72 • chunk 1 of 2".to_owned(),
-                Some(31)
-            ))
-        );
-    }
-}
-
 fn ffmpeg_metadata_args(
     audio: &Path,
     source: &Path,
@@ -928,4 +865,67 @@ fn find_file(root: &Path, name: &str) -> Result<PathBuf> {
             "Confirm that the installed Demucs supports the htdemucs_ft model and standard stem names.",
         )
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cleans_control_characters_from_tags_and_messages() {
+        assert_eq!(clean_tag("A\nTitle\u{1b}[31m"), "A Title [31m");
+        assert_eq!(clean_tag("\n\t"), "Untitled");
+    }
+
+    #[test]
+    fn selects_concise_diagnostics() {
+        let stderr =
+            "ffmpeg version 8\nconfiguration: noisy\nFirst useful line\nLast useful line\n";
+        assert_eq!(
+            useful_diagnostic(stderr),
+            "First useful line — Last useful line"
+        );
+        assert_eq!(
+            demucs_progress("[####>---] 12.5 MiB/333.0 MiB (21s)"),
+            Some((
+                "Downloading audio-separation model • 13 of 349 MB".to_owned(),
+                Some(3)
+            ))
+        );
+    }
+
+    #[test]
+    fn gives_guidance_for_common_external_failures() {
+        assert!(
+            diagnostic_guidance("No space left on device")
+                .unwrap()
+                .contains("disk is full")
+        );
+        assert!(
+            diagnostic_guidance("Invalid data found")
+                .unwrap()
+                .contains("damaged")
+        );
+        assert!(diagnostic_guidance("unclassified failure").is_none());
+    }
+
+    #[test]
+    fn recognizes_demucs_phases_and_percentages() {
+        assert_eq!(
+            demucs_progress("Loading cached model: htdemucs_ft"),
+            Some(("Loading cached audio-separation model".to_owned(), None))
+        );
+        assert_eq!(
+            demucs_progress("\u{1b}[2KSeparating  42%"),
+            Some(("Analyzing and separating audio".to_owned(), Some(42)))
+        );
+        assert_eq!(demucs_progress("unrelated diagnostic"), None);
+        assert_eq!(
+            demucs_progress("Separating [####>---] 23/72 (1m 12s) chunk 1/2"),
+            Some((
+                "Analyzing audio • step 23 of 72 • chunk 1 of 2".to_owned(),
+                Some(31)
+            ))
+        );
+    }
 }

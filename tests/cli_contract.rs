@@ -62,7 +62,7 @@ fn inspect_json_preserves_unicode_paths_and_reports_compressed_audio() {
     write_executable(
         &tools.join("ffprobe"),
         r#"#!/bin/sh
-printf '%s\n' '{"streams":[{"codec_name":"mp3","codec_type":"audio","sample_rate":"44100","channels":2}],"format":{"format_name":"mp3","duration":"245.5","tags":{"TITLE":"A Test Blend"}}}'
+printf '%s\n' '{"streams":[{"index":0,"codec_name":"mp3","codec_type":"audio","sample_rate":"44100","channels":2,"bit_rate":"256000"}],"format":{"format_name":"mp3","duration":"245.5","tags":{"TITLE":"A Test Blend"}},"packets":[{"stream_index":0,"size":"835"},{"stream_index":0,"size":"836"},{"stream_index":0,"size":"835"},{"stream_index":0,"size":"836"}]}'
 "#,
     );
     let track = temporary.path().join("Beyoncé – test 🎧.mp3");
@@ -86,6 +86,9 @@ printf '%s\n' '{"streams":[{"codec_name":"mp3","codec_type":"audio","sample_rate
     assert_eq!(inspection["readiness"], "warning");
     assert_eq!(inspection["lossless"], false);
     assert_eq!(inspection["sample_rate"], 44_100);
+    assert_eq!(inspection["source_bitrate_kbps"], 256);
+    assert_eq!(inspection["source_vbr"], false);
+    assert_eq!(inspection["output_quality"], "256 kbps MP3");
 }
 
 #[test]
@@ -132,6 +135,7 @@ fn existing_output_is_refused_before_separation_without_replace() {
 case "$*" in
   *stream=codec_name*) printf 'flac\n' ;;
   *format_tags=title*) printf 'Existing Test\n' ;;
+  *-of\ json*) printf '%s\n' '{"streams":[{"index":0,"codec_name":"flac","codec_type":"audio","sample_rate":"44100","channels":2}],"format":{"format_name":"flac","duration":"120","tags":{"TITLE":"Existing Test"}}}' ;;
 esac
 "#,
     );

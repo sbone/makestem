@@ -1,3 +1,4 @@
+use crate::inspect::{Mp3Encoding, encoding_for_audio};
 use sha2::{Digest, Sha256};
 use std::{
     ffi::OsStr,
@@ -9,7 +10,6 @@ use std::{
 };
 
 const MODEL: &str = "htdemucs_ft";
-const BITRATE: &str = "320k";
 const MODEL_FILENAME: &str = "htdemucs_ft.safetensors";
 const MODEL_SIZE: u64 = 336_125_008;
 const MODEL_SHA256: &str = "255c2650d26537ce4887c9c4cf08c6d4896fad2fecc0b78dc5b875b117bcc575";
@@ -77,6 +77,7 @@ pub struct Pipeline {
     output_dir: PathBuf,
     work_dir: PathBuf,
     title: String,
+    encoding: Mp3Encoding,
 }
 
 struct PendingOutput {
@@ -102,6 +103,7 @@ impl Pipeline {
         }
         let input = fs::canonicalize(input).map_err(|e| PipelineError::new(e.to_string()))?;
         validate_audio(&input)?;
+        let encoding = encoding_for_audio(&input).map_err(PipelineError::new)?;
         let parent = input.parent().unwrap_or_else(|| Path::new("."));
         let output_dir = parent.join("output");
         let work_dir = parent.join(format!(".makestem-work-{}", std::process::id()));
@@ -117,6 +119,7 @@ impl Pipeline {
             output_dir,
             work_dir,
             title,
+            encoding,
         })
     }
 
@@ -215,8 +218,13 @@ impl Pipeline {
     fn encode_acapella(&self, destination: &Path, reporter: &mut impl Reporter) -> Result<()> {
         let vocals = find_file(&self.work_dir, "vocals.wav")?;
         let title = format!("{} ({})", self.title, Product::Acapella.suffix());
-        let args = ffmpeg_metadata_args(&vocals, &self.input, destination, &title);
-        run_stage("Encoding 320 kbps acapella", "ffmpeg", &args, reporter)
+        let args = ffmpeg_metadata_args(&vocals, &self.input, destination, &title, &self.encoding);
+        run_stage(
+            &format!("Encoding {} acapella", self.encoding.label()),
+            "ffmpeg",
+            &args,
+            reporter,
+        )
     }
 
     fn encode_instrumental(&self, destination: &Path, reporter: &mut impl Reporter) -> Result<()> {
@@ -224,9 +232,17 @@ impl Pipeline {
         let bass = find_file(&self.work_dir, "bass.wav")?;
         let other = find_file(&self.work_dir, "other.wav")?;
         let title = format!("{} ({})", self.title, Product::Instrumental.suffix());
-        let args = instrumental_mix_args(&drums, &bass, &other, &self.input, destination, &title);
+        let args = instrumental_mix_args(
+            &drums,
+            &bass,
+            &other,
+            &self.input,
+            destination,
+            &title,
+            &self.encoding,
+        );
         run_stage(
-            "Mixing and encoding 320 kbps instrumental",
+            &format!("Mixing and encoding {} instrumental", self.encoding.label()),
             "ffmpeg",
             &args,
             reporter,
@@ -264,8 +280,9 @@ fn instrumental_mix_args(
     source: &Path,
     destination: &Path,
     title: &str,
+    encoding: &Mp3Encoding,
 ) -> Vec<std::ffi::OsString> {
-    vec![
+    let mut args = vec![
         "-hide_banner".into(),
         "-loglevel".into(),
         "error".into(),
@@ -288,10 +305,10 @@ fn instrumental_mix_args(
         format!("title={title}").into(),
         "-c:a".into(),
         "libmp3lame".into(),
-        "-b:a".into(),
-        BITRATE.into(),
-        destination.as_os_str().to_owned(),
-    ]
+    ];
+    append_encoding_args(&mut args, encoding);
+    args.push(destination.as_os_str().to_owned());
+    args
 }
 
 fn cleanup_pending(outputs: &[PendingOutput]) {
@@ -930,8 +947,9 @@ fn ffmpeg_metadata_args(
     source: &Path,
     destination: &Path,
     title: &str,
+    encoding: &Mp3Encoding,
 ) -> Vec<std::ffi::OsString> {
-    vec![
+    let mut args = vec![
         "-hide_banner".into(),
         "-loglevel".into(),
         "error".into(),
@@ -948,10 +966,19 @@ fn ffmpeg_metadata_args(
         format!("title={title}").into(),
         "-c:a".into(),
         "libmp3lame".into(),
-        "-b:a".into(),
-        BITRATE.into(),
-        destination.as_os_str().to_owned(),
-    ]
+    ];
+    append_encoding_args(&mut args, encoding);
+    args.push(destination.as_os_str().to_owned());
+    args
+}
+
+fn append_encoding_args(args: &mut Vec<std::ffi::OsString>, encoding: &Mp3Encoding) {
+    match encoding {
+        Mp3Encoding::Cbr(kbps) => args.extend(["-b:a".into(), format!("{kbps}k").into()]),
+        Mp3Encoding::Vbr { quality, .. } => {
+            args.extend(["-q:a".into(), quality.to_string().into()])
+        }
+    }
 }
 
 fn read_title(input: &Path) -> Option<String> {
@@ -1069,6 +1096,7 @@ mod tests {
             Path::new("source-with-cover-art.mp3"),
             Path::new("instrumental.mp3"),
             "Track (Instrumental)",
+            &Mp3Encoding::Cbr(192),
         );
         let args = args
             .iter()
@@ -1077,6 +1105,27 @@ mod tests {
 
         assert!(args.windows(2).any(|pair| pair == ["-map", "[mixed]"]));
         assert!(args.iter().any(|arg| arg.ends_with("normalize=0[mixed]")));
+        assert!(args.windows(2).any(|pair| pair == ["-b:a", "192k"]));
+    }
+
+    #[test]
+    fn acapella_encoding_uses_the_selected_vbr_profile() {
+        let args = ffmpeg_metadata_args(
+            Path::new("vocals.wav"),
+            Path::new("source.mp3"),
+            Path::new("acapella.mp3"),
+            "Track (Acapella)",
+            &Mp3Encoding::Vbr {
+                quality: 2,
+                approximate_kbps: 190,
+            },
+        )
+        .iter()
+        .map(|value| value.to_string_lossy().into_owned())
+        .collect::<Vec<_>>();
+
+        assert!(args.windows(2).any(|pair| pair == ["-q:a", "2"]));
+        assert!(!args.iter().any(|arg| arg == "-b:a"));
     }
 
     #[test]

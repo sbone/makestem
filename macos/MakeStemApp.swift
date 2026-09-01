@@ -20,6 +20,9 @@ struct Inspection: Codable, Sendable {
     let channels: Int?
     let bitDepth: Int?
     let lossless: Bool
+    let sourceBitrateKbps: Int?
+    let sourceVbr: Bool?
+    let outputQuality: String
     let readiness: String
     let message: String
 
@@ -28,6 +31,9 @@ struct Inspection: Codable, Sendable {
         case durationSeconds = "duration_seconds"
         case sampleRate = "sample_rate"
         case bitDepth = "bit_depth"
+        case sourceBitrateKbps = "source_bitrate_kbps"
+        case sourceVbr = "source_vbr"
+        case outputQuality = "output_quality"
     }
 }
 
@@ -699,6 +705,9 @@ struct ContentView: View {
                 Spacer()
             }
             Text(item.message).fixedSize(horizontal: false, vertical: true)
+            Label("Output: \(item.outputQuality)", systemImage: "waveform.badge.checkmark")
+                .font(.callout.weight(.medium))
+                .foregroundStyle(.secondary)
             if item.readiness != "blocked" {
                 Picker("Create", selection: $model.outputChoice) {
                     ForEach(OutputChoice.allCases) { Text($0.rawValue).tag($0) }
@@ -791,6 +800,9 @@ struct ContentView: View {
 
     private func summary(_ item: Inspection) -> String {
         var parts = [item.format, item.lossless ? "Lossless" : "Compressed"]
+        if let bitrate = item.sourceBitrateKbps {
+            parts.append(item.sourceVbr == true ? "~\(bitrate) kbps VBR" : "\(bitrate) kbps")
+        }
         if let depth = item.bitDepth { parts.append("\(depth)-bit") }
         if let rate = item.sampleRate { parts.append(String(format: "%.1f kHz", Double(rate) / 1000)) }
         if let channels = item.channels { parts.append(channels == 1 ? "Mono" : channels == 2 ? "Stereo" : "\(channels) channels") }

@@ -4,7 +4,7 @@
 
 Real-time tools such as Serato Stems are invaluable for experimenting: try an idea immediately, discover an unexpected pairing, and find the blends worth finishing. When a real-time separation sounds artifact-heavy or gets part of a track wrong, MakeStem takes the slower, higher-quality route.
 
-MakeStem creates pre-processed acapellas and instrumentals for recorded and shareable DJ blends. It runs a fine-tuned Demucs audio-separation model, mixes instrumental stems, encodes 320 kbps MP3s, preserves metadata, and keeps the results organized. After the model is downloaded, every operation runs locally on your computer and your tracks never leave it.
+MakeStem creates pre-processed acapellas and instrumentals for recorded and shareable DJ blends. It runs a fine-tuned Demucs audio-separation model, mixes instrumental stems, encodes source-aware MP3s, preserves metadata, and keeps the results organized. After the model is downloaded, every operation runs locally on your computer and your tracks never leave it.
 
 > Serato Stems helps you discover the blend. MakeStem helps you finish it.
 
@@ -15,7 +15,7 @@ MakeStem is an independent project and is not affiliated with or endorsed by Ser
 - Creates an acapella, an instrumental, or both from a full mix.
 - Uses the fine-tuned `htdemucs_ft` audio-separation model for separation quality.
 - Combines the drums, bass, and other stems into one instrumental.
-- Produces 320 kbps MP3 files in an `output/` directory beside the source.
+- Produces MP3 files in an `output/` directory beside the source, matching compressed-source quality without needless up-encoding.
 - Copies source metadata and adds `(Acapella)` or `(Instrumental)` to the title.
 - Shows each processing stage and turns noisy tool failures into concise, useful guidance.
 - Downloads the model weights once, then processes everything locally; your audio is never uploaded.
@@ -124,7 +124,12 @@ output/
 └── Track Title (Instrumental).mp3
 ```
 
-Files are encoded as 320 kbps MP3s. Source metadata is copied and the appropriate output suffix is added to the track title.
+Lossless sources produce 320 kbps MP3s. For compressed sources, MakeStem caps
+the output at the detected source quality; VBR MP3s retain an appropriate LAME
+VBR profile. If a compressed file does not report a usable bitrate, MakeStem
+uses a conservative 192 kbps fallback. The Mac app previews the choice before
+processing. Source metadata is copied and the appropriate output suffix is
+added to the track title.
 
 MakeStem never silently overwrites an existing stem. The Mac app asks before
 replacing files; the CLI requires an explicit `--replace`. New stems are fully

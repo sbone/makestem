@@ -122,6 +122,11 @@ output/
 
 Files are encoded as 320 kbps MP3s. Source metadata is copied and the appropriate output suffix is added to the track title.
 
+MakeStem never silently overwrites an existing stem. The Mac app asks before
+replacing files; the CLI requires an explicit `--replace`. New stems are fully
+encoded before replacement begins, so a failure or cancellation preserves the
+previous files.
+
 ## When something goes wrong
 
 Audio from the wild can contain incomplete downloads, damaged containers, unusual codecs, malformed tags, or unexpected characters. MakeStem checks the source before starting a long separation and keeps errors short. When possible, it distinguishes an application failure from a source-file, model, codec, permission, or disk-space problem and suggests what to try next.

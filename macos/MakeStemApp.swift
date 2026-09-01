@@ -108,12 +108,12 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func process(_ inspection: Inspection) {
+    func process(_ inspection: Inspection, choice: OutputChoice, replace: Bool) {
         state = .processing(inspection, ProcessingStatus(stage: "Checking tools and source audio"))
-        let choice = outputChoice
         let operation = Engine.processEvents(
             URL(fileURLWithPath: inspection.path),
-            choice: choice
+            choice: choice,
+            replace: replace
         )
         let operationID = UUID()
         currentOperation = operation
@@ -275,13 +275,15 @@ enum Engine {
 
     static func processEvents(
         _ url: URL,
-        choice: OutputChoice
+        choice: OutputChoice,
+        replace: Bool
     ) -> EventOperation {
         var arguments: [String] = ["--events-json"]
         if choice == .acapella { arguments.append("-a") }
         if choice == .instrumental { arguments.append("-i") }
+        if replace { arguments.append("--replace") }
         arguments.append(url.path)
-        return eventStream(arguments: arguments, cleanup: audioCleanup(url, choice: choice))
+        return eventStream(arguments: arguments, cleanup: outputURLs(url, choice: choice))
     }
 
     static func modelEvents() -> EventOperation {
@@ -355,7 +357,7 @@ enum Engine {
         }
     }
 
-    private static func audioCleanup(_ source: URL, choice: OutputChoice) -> [URL] {
+    static func outputURLs(_ source: URL, choice: OutputChoice) -> [URL] {
         let parent = source.deletingLastPathComponent()
         let output = parent.appendingPathComponent("output")
         let base = source.deletingPathExtension().lastPathComponent
@@ -367,6 +369,12 @@ enum Engine {
             paths.append(output.appendingPathComponent("\(base) (Instrumental).mp3"))
         }
         return paths
+    }
+
+    static func existingOutputs(_ source: URL, choice: OutputChoice) -> [URL] {
+        outputURLs(source, choice: choice).filter {
+            FileManager.default.fileExists(atPath: $0.path)
+        }
     }
 }
 
@@ -380,7 +388,6 @@ final class ProcessController: @unchecked Sendable {
     private var process: Process?
     private var cancelled = false
     private let cleanup: [URL]
-    private let startedAt = Date()
 
     init(cleanup: [URL]) { self.cleanup = cleanup }
 
@@ -411,9 +418,20 @@ final class ProcessController: @unchecked Sendable {
             let work = cleanup.first?.deletingLastPathComponent().deletingLastPathComponent()
                 .appendingPathComponent(".makestem-work-\(processID)")
             if let work { try? FileManager.default.removeItem(at: work) }
-        }
-        for url in cleanup where wasCreatedDuringOperation(url) {
-            try? FileManager.default.removeItem(at: url)
+            for (index, destination) in cleanup.enumerated() {
+                let directory = destination.deletingLastPathComponent()
+                let temporary = directory.appendingPathComponent(
+                    ".makestem-output-\(processID)-\(index).mp3"
+                )
+                let backup = directory.appendingPathComponent(
+                    ".makestem-backup-\(processID)-\(index).mp3"
+                )
+                try? FileManager.default.removeItem(at: temporary)
+                if FileManager.default.fileExists(atPath: backup.path) {
+                    try? FileManager.default.removeItem(at: destination)
+                    try? FileManager.default.moveItem(at: backup, to: destination)
+                }
+            }
         }
     }
 
@@ -430,11 +448,6 @@ final class ProcessController: @unchecked Sendable {
         }
     }
 
-    private func wasCreatedDuringOperation(_ url: URL) -> Bool {
-        guard let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
-              let modified = attributes[.modificationDate] as? Date else { return false }
-        return modified >= startedAt
-    }
 }
 
 struct EngineEvent: Codable, Sendable {
@@ -455,6 +468,7 @@ struct AppError: LocalizedError {
 struct ContentView: View {
     @StateObject private var model = AppModel()
     @State private var showsModelInfo = false
+    @State private var replacementRequest: ReplacementRequest?
 
     var body: some View {
         VStack(spacing: 24) {
@@ -475,6 +489,22 @@ struct ContentView: View {
         .padding(32)
         .frame(minWidth: 620, idealWidth: 680, minHeight: 520, idealHeight: 600)
         .background(Color(nsColor: .windowBackgroundColor))
+        .alert(
+            "Replace existing files?",
+            isPresented: Binding(
+                get: { replacementRequest != nil },
+                set: { if !$0 { replacementRequest = nil } }
+            ),
+            presenting: replacementRequest
+        ) { request in
+            Button("Cancel", role: .cancel) {}
+            Button("Replace Existing", role: .destructive) {
+                model.process(request.inspection, choice: request.choice, replace: true)
+                replacementRequest = nil
+            }
+        } message: { request in
+            Text(replacementMessage(request.outputs))
+        }
     }
 
     private var showsModelAction: Bool {
@@ -682,7 +712,7 @@ struct ContentView: View {
                         model.isDownloadingModel
                             ? "Model Downloading…"
                             : item.readiness == "warning" ? "Process Anyway" : "Create Stems"
-                    ) { model.process(item) }
+                    ) { beginProcessing(item) }
                         .buttonStyle(.borderedProminent)
                         .disabled(model.isDownloadingModel)
                 }
@@ -778,6 +808,36 @@ struct ContentView: View {
         if hours > 0 { return String(format: "%d:%02d:%02d", hours, minutes, seconds) }
         return String(format: "%d:%02d", minutes, seconds)
     }
+
+    private func beginProcessing(_ inspection: Inspection) {
+        let choice = model.outputChoice
+        let outputs = Engine.existingOutputs(
+            URL(fileURLWithPath: inspection.path),
+            choice: choice
+        )
+        if outputs.isEmpty {
+            model.process(inspection, choice: choice, replace: false)
+        } else {
+            replacementRequest = ReplacementRequest(
+                inspection: inspection,
+                choice: choice,
+                outputs: outputs
+            )
+        }
+    }
+
+    private func replacementMessage(_ outputs: [URL]) -> String {
+        let names = outputs.map(\.lastPathComponent)
+        let list = names.count == 1 ? names[0] : names.joined(separator: "\n")
+        return "MakeStem already created:\n\n\(list)\n\nThe existing file\(names.count == 1 ? "" : "s") will be replaced only after the new stems finish successfully."
+    }
+}
+
+private struct ReplacementRequest: Identifiable {
+    let id = UUID()
+    let inspection: Inspection
+    let choice: OutputChoice
+    let outputs: [URL]
 }
 
 @main

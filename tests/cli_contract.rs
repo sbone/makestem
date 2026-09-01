@@ -120,3 +120,49 @@ fn missing_track_is_a_usage_error() {
     assert_eq!(output.status.code(), Some(2));
     assert!(String::from_utf8_lossy(&output.stderr).contains("source track is required"));
 }
+
+#[test]
+fn existing_output_is_refused_before_separation_without_replace() {
+    let temporary = TestDirectory::new("existing-output");
+    let tools = temporary.path().join("tools");
+    fs::create_dir(&tools).unwrap();
+    write_executable(
+        &tools.join("ffprobe"),
+        r#"#!/bin/sh
+case "$*" in
+  *stream=codec_name*) printf 'flac\n' ;;
+  *format_tags=title*) printf 'Existing Test\n' ;;
+esac
+"#,
+    );
+    write_executable(&tools.join("ffmpeg"), "#!/bin/sh\nexit 0\n");
+    write_executable(&tools.join("demucs"), "#!/bin/sh\nexit 0\n");
+    let track = temporary.path().join("track.flac");
+    fs::write(&track, b"fixture").unwrap();
+    let output_directory = temporary.path().join("output");
+    fs::create_dir(&output_directory).unwrap();
+    let existing = output_directory.join("track (Acapella).mp3");
+    fs::write(&existing, b"original stem").unwrap();
+
+    let output = Command::new(executable())
+        .args(["--events-json", "--acapella", track.to_str().unwrap()])
+        .env("PATH", &tools)
+        .output()
+        .unwrap();
+
+    assert!(!output.status.success());
+    let events = json_lines(&output);
+    assert!(
+        events.last().unwrap()["message"]
+            .as_str()
+            .unwrap()
+            .contains("Output already exists")
+    );
+    assert!(
+        events.last().unwrap()["guidance"]
+            .as_str()
+            .unwrap()
+            .contains("--replace")
+    );
+    assert_eq!(fs::read(existing).unwrap(), b"original stem");
+}

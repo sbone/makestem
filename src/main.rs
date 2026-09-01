@@ -98,6 +98,10 @@ struct Cli {
     #[arg(short = 'i', long, action = ArgAction::SetTrue)]
     instrumental: bool,
 
+    /// Replace existing requested output files
+    #[arg(long, action = ArgAction::SetTrue)]
+    replace: bool,
+
     /// Source audio file
     #[arg(value_name = "TRACK")]
     track: Option<PathBuf>,
@@ -143,7 +147,7 @@ fn main() {
 
     if cli.events_json {
         let mut reporter = JsonReporter;
-        let result = run_pipeline(track, &products, &mut reporter);
+        let result = run_pipeline(track, &products, cli.replace, &mut reporter);
         match result {
             Ok(outputs) => {
                 println!("{}", json!({ "type": "complete", "outputs": outputs }));
@@ -165,7 +169,7 @@ fn main() {
 
     println!("MakeStem\n");
     let mut reporter = TerminalReporter::new();
-    let result = run_pipeline(track, &products, &mut reporter);
+    let result = run_pipeline(track, &products, cli.replace, &mut reporter);
     reporter.clear();
 
     match result {
@@ -210,6 +214,7 @@ fn require_track(track: Option<&std::path::Path>) -> &std::path::Path {
 fn run_pipeline(
     track: &std::path::Path,
     products: &[Product],
+    replace: bool,
     reporter: &mut impl Reporter,
 ) -> makestem::pipeline::Result<Vec<PathBuf>> {
     reporter.report(Event::StageStarted("Checking required tools".to_owned()));
@@ -220,5 +225,5 @@ fn run_pipeline(
     let pipeline = Pipeline::new(track)?;
     reporter.report(Event::StageCompleted("Inspecting source audio".to_owned()));
 
-    pipeline.run(products, reporter)
+    pipeline.run(products, replace, reporter)
 }

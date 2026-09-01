@@ -79,6 +79,12 @@ pub struct Pipeline {
     title: String,
 }
 
+struct PendingOutput {
+    destination: PathBuf,
+    temporary: PathBuf,
+    backup: PathBuf,
+}
+
 impl Pipeline {
     pub fn new(input: impl AsRef<Path>) -> Result<Self> {
         let input = input.as_ref();
@@ -133,6 +139,7 @@ impl Pipeline {
     pub fn run(
         mut self,
         products: &[Product],
+        replace: bool,
         reporter: &mut impl Reporter,
     ) -> Result<Vec<PathBuf>> {
         fs::create_dir_all(&self.output_dir).map_err(|e| {
@@ -141,12 +148,29 @@ impl Pipeline {
                 "Check that you have permission to write beside the source track.",
             )
         })?;
+        let existing: Vec<PathBuf> = products
+            .iter()
+            .map(|product| self.output_path(*product))
+            .filter(|path| path.exists())
+            .collect();
+        if !replace && !existing.is_empty() {
+            let names = existing
+                .iter()
+                .filter_map(|path| path.file_name())
+                .map(|name| format!("‘{}’", clean_terminal_text(&name.to_string_lossy())))
+                .collect::<Vec<_>>()
+                .join(", ");
+            return Err(PipelineError::guided(
+                format!("Output already exists: {names}."),
+                "Choose Replace Existing Files in the app, or run the CLI again with `--replace`.",
+            ));
+        }
         if self.work_dir.exists() {
             fs::remove_dir_all(&self.work_dir).map_err(|e| PipelineError::new(e.to_string()))?;
         }
         fs::create_dir_all(&self.work_dir).map_err(|e| PipelineError::new(e.to_string()))?;
 
-        let result = self.run_inner(products, reporter);
+        let result = self.run_inner(products, replace, reporter);
         let _ = fs::remove_dir_all(&self.work_dir);
         result
     }
@@ -154,6 +178,7 @@ impl Pipeline {
     fn run_inner(
         &mut self,
         products: &[Product],
+        replace: bool,
         reporter: &mut impl Reporter,
     ) -> Result<Vec<PathBuf>> {
         prepare_model(reporter)?;
@@ -165,16 +190,26 @@ impl Pipeline {
         args.extend(["-o".into(), self.work_dir.as_os_str().to_owned()]);
         run_demucs(&args, reporter)?;
 
-        let mut outputs = Vec::new();
-        for product in products {
-            let path = self.output_path(*product);
-            match product {
-                Product::Acapella => self.encode_acapella(&path, reporter)?,
-                Product::Instrumental => self.encode_instrumental(&path, reporter)?,
+        let pending: Vec<PendingOutput> = products
+            .iter()
+            .enumerate()
+            .map(|(index, product)| self.pending_output(*product, index))
+            .collect();
+        for (product, output) in products.iter().zip(&pending) {
+            let result = match product {
+                Product::Acapella => self.encode_acapella(&output.temporary, reporter),
+                Product::Instrumental => self.encode_instrumental(&output.temporary, reporter),
+            };
+            if let Err(error) = result {
+                cleanup_pending(&pending);
+                return Err(error);
             }
-            outputs.push(path);
         }
-        Ok(outputs)
+        commit_outputs(&pending, replace)?;
+        Ok(pending
+            .into_iter()
+            .map(|output| output.destination)
+            .collect())
     }
 
     fn encode_acapella(&self, destination: &Path, reporter: &mut impl Reporter) -> Result<()> {
@@ -230,6 +265,85 @@ impl Pipeline {
             .unwrap_or("track");
         self.output_dir
             .join(format!("{base} ({}).mp3", product.suffix()))
+    }
+
+    fn pending_output(&self, product: Product, index: usize) -> PendingOutput {
+        let process = std::process::id();
+        PendingOutput {
+            destination: self.output_path(product),
+            temporary: self
+                .output_dir
+                .join(format!(".makestem-output-{process}-{index}.mp3")),
+            backup: self
+                .output_dir
+                .join(format!(".makestem-backup-{process}-{index}.mp3")),
+        }
+    }
+}
+
+fn cleanup_pending(outputs: &[PendingOutput]) {
+    for output in outputs {
+        let _ = fs::remove_file(&output.temporary);
+    }
+}
+
+fn commit_outputs(outputs: &[PendingOutput], replace: bool) -> Result<()> {
+    let mut backed_up = Vec::new();
+    let mut committed = Vec::new();
+
+    if replace {
+        for (index, output) in outputs.iter().enumerate() {
+            let _ = fs::remove_file(&output.backup);
+            if output.destination.exists() {
+                if let Err(error) = fs::rename(&output.destination, &output.backup) {
+                    restore_outputs(outputs, &backed_up, &committed);
+                    cleanup_pending(outputs);
+                    return Err(PipelineError::guided(
+                        format!("Could not safely replace an existing output: {error}"),
+                        "The existing files were preserved. Check output-folder permissions and try again.",
+                    ));
+                }
+                backed_up.push(index);
+            }
+        }
+    }
+
+    for (index, output) in outputs.iter().enumerate() {
+        let result = if replace {
+            fs::rename(&output.temporary, &output.destination)
+        } else {
+            fs::hard_link(&output.temporary, &output.destination)
+        };
+        if let Err(error) = result {
+            restore_outputs(outputs, &backed_up, &committed);
+            cleanup_pending(outputs);
+            return Err(PipelineError::guided(
+                format!("Could not save the finished output: {error}"),
+                if output.destination.exists() {
+                    "An output appeared while MakeStem was working. It was preserved; confirm replacement and try again."
+                } else {
+                    "Existing files were preserved. Check output-folder permissions and try again."
+                },
+            ));
+        }
+        committed.push(index);
+        if !replace {
+            let _ = fs::remove_file(&output.temporary);
+        }
+    }
+
+    for index in backed_up {
+        let _ = fs::remove_file(&outputs[index].backup);
+    }
+    Ok(())
+}
+
+fn restore_outputs(outputs: &[PendingOutput], backed_up: &[usize], committed: &[usize]) {
+    for index in committed.iter().rev() {
+        let _ = fs::remove_file(&outputs[*index].destination);
+    }
+    for index in backed_up.iter().rev() {
+        let _ = fs::rename(&outputs[*index].backup, &outputs[*index].destination);
     }
 }
 
@@ -870,6 +984,28 @@ fn find_file(root: &Path, name: &str) -> Result<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn test_directory(label: &str) -> PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!(
+            "makestem-pipeline-{label}-{}-{unique}",
+            std::process::id()
+        ));
+        fs::create_dir_all(&path).unwrap();
+        path
+    }
+
+    fn pending(directory: &Path, index: usize) -> PendingOutput {
+        PendingOutput {
+            destination: directory.join(format!("output-{index}.mp3")),
+            temporary: directory.join(format!("temporary-{index}.mp3")),
+            backup: directory.join(format!("backup-{index}.mp3")),
+        }
+    }
 
     #[test]
     fn cleans_control_characters_from_tags_and_messages() {
@@ -927,5 +1063,56 @@ mod tests {
                 Some(31)
             ))
         );
+    }
+
+    #[test]
+    fn refuses_to_replace_an_output_without_permission() {
+        let directory = test_directory("preserve");
+        let output = pending(&directory, 0);
+        fs::write(&output.destination, b"original").unwrap();
+        fs::write(&output.temporary, b"new").unwrap();
+
+        let error = commit_outputs(&[output], false).unwrap_err();
+
+        assert!(error.message.contains("Could not save"));
+        assert_eq!(
+            fs::read(directory.join("output-0.mp3")).unwrap(),
+            b"original"
+        );
+        assert!(!directory.join("temporary-0.mp3").exists());
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn replaces_outputs_only_after_all_encodes_are_ready() {
+        let directory = test_directory("replace");
+        let outputs = [pending(&directory, 0), pending(&directory, 1)];
+        for (index, output) in outputs.iter().enumerate() {
+            fs::write(&output.destination, format!("old-{index}")).unwrap();
+            fs::write(&output.temporary, format!("new-{index}")).unwrap();
+        }
+
+        commit_outputs(&outputs, true).unwrap();
+
+        assert_eq!(fs::read(&outputs[0].destination).unwrap(), b"new-0");
+        assert_eq!(fs::read(&outputs[1].destination).unwrap(), b"new-1");
+        assert!(outputs.iter().all(|output| !output.backup.exists()));
+        fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn restores_every_existing_output_when_commit_fails() {
+        let directory = test_directory("rollback");
+        let outputs = [pending(&directory, 0), pending(&directory, 1)];
+        fs::write(&outputs[0].destination, b"old-0").unwrap();
+        fs::write(&outputs[1].destination, b"old-1").unwrap();
+        fs::write(&outputs[0].temporary, b"new-0").unwrap();
+
+        assert!(commit_outputs(&outputs, true).is_err());
+
+        assert_eq!(fs::read(&outputs[0].destination).unwrap(), b"old-0");
+        assert_eq!(fs::read(&outputs[1].destination).unwrap(), b"old-1");
+        assert!(outputs.iter().all(|output| !output.backup.exists()));
+        fs::remove_dir_all(directory).unwrap();
     }
 }

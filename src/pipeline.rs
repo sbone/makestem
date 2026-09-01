@@ -224,31 +224,7 @@ impl Pipeline {
         let bass = find_file(&self.work_dir, "bass.wav")?;
         let other = find_file(&self.work_dir, "other.wav")?;
         let title = format!("{} ({})", self.title, Product::Instrumental.suffix());
-        let args = vec![
-            "-hide_banner".into(),
-            "-loglevel".into(),
-            "error".into(),
-            "-y".into(),
-            "-i".into(),
-            drums.into_os_string(),
-            "-i".into(),
-            bass.into_os_string(),
-            "-i".into(),
-            other.into_os_string(),
-            "-i".into(),
-            self.input.as_os_str().to_owned(),
-            "-filter_complex".into(),
-            "amix=inputs=3:duration=longest:normalize=0".into(),
-            "-map_metadata".into(),
-            "3".into(),
-            "-metadata".into(),
-            format!("title={title}").into(),
-            "-c:a".into(),
-            "libmp3lame".into(),
-            "-b:a".into(),
-            BITRATE.into(),
-            destination.as_os_str().to_owned(),
-        ];
+        let args = instrumental_mix_args(&drums, &bass, &other, &self.input, destination, &title);
         run_stage(
             "Mixing and encoding 320 kbps instrumental",
             "ffmpeg",
@@ -279,6 +255,43 @@ impl Pipeline {
                 .join(format!(".makestem-backup-{process}-{index}.mp3")),
         }
     }
+}
+
+fn instrumental_mix_args(
+    drums: &Path,
+    bass: &Path,
+    other: &Path,
+    source: &Path,
+    destination: &Path,
+    title: &str,
+) -> Vec<std::ffi::OsString> {
+    vec![
+        "-hide_banner".into(),
+        "-loglevel".into(),
+        "error".into(),
+        "-y".into(),
+        "-i".into(),
+        drums.as_os_str().to_owned(),
+        "-i".into(),
+        bass.as_os_str().to_owned(),
+        "-i".into(),
+        other.as_os_str().to_owned(),
+        "-i".into(),
+        source.as_os_str().to_owned(),
+        "-filter_complex".into(),
+        "amix=inputs=3:duration=longest:normalize=0[mixed]".into(),
+        "-map".into(),
+        "[mixed]".into(),
+        "-map_metadata".into(),
+        "3".into(),
+        "-metadata".into(),
+        format!("title={title}").into(),
+        "-c:a".into(),
+        "libmp3lame".into(),
+        "-b:a".into(),
+        BITRATE.into(),
+        destination.as_os_str().to_owned(),
+    ]
 }
 
 fn cleanup_pending(outputs: &[PendingOutput]) {
@@ -855,6 +868,8 @@ fn diagnostic_guidance(stderr: &str) -> Option<String> {
         || text.contains("end of file")
     {
         "The file appears damaged or incomplete. Confirm it plays fully, or re-export it before retrying."
+    } else if text.contains("automatic encoder selection failed") && text.contains("codec png") {
+        "The source contains embedded artwork that could not be copied. Remove the artwork or re-export the track, then retry."
     } else if text.contains("unknown encoder") || text.contains("encoder 'libmp3lame'") {
         "This FFmpeg build lacks MP3 encoding support. Install a full FFmpeg build with libmp3lame."
     } else if text.contains("unsupported") || text.contains("unknown format") {
@@ -1043,6 +1058,25 @@ mod tests {
                 .contains("damaged")
         );
         assert!(diagnostic_guidance("unclassified failure").is_none());
+    }
+
+    #[test]
+    fn instrumental_encoding_maps_only_the_mixed_audio() {
+        let args = instrumental_mix_args(
+            Path::new("drums.wav"),
+            Path::new("bass.wav"),
+            Path::new("other.wav"),
+            Path::new("source-with-cover-art.mp3"),
+            Path::new("instrumental.mp3"),
+            "Track (Instrumental)",
+        );
+        let args = args
+            .iter()
+            .map(|value| value.to_string_lossy().into_owned())
+            .collect::<Vec<_>>();
+
+        assert!(args.windows(2).any(|pair| pair == ["-map", "[mixed]"]));
+        assert!(args.iter().any(|arg| arg.ends_with("normalize=0[mixed]")));
     }
 
     #[test]

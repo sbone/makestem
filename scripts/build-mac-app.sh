@@ -16,4 +16,5 @@ xcodebuild \
   CODE_SIGN_IDENTITY=- \
   build
 
+codesign --force --sign - --options runtime "$repo_root/build/MakeStem.app"
 echo "Built $repo_root/build/MakeStem.app"

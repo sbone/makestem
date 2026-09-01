@@ -31,7 +31,7 @@ FFmpeg, and FFprobe; friends will not need Homebrew, Rust, or Terminal.
 Building the app itself currently requires:
 
 - A current [Rust toolchain](https://rustup.rs/)
-- Apple Command Line Tools (`xcode-select --install`)
+- Xcode 26 or newer with its command-line tools selected
 - The native [demucs-rs CLI](https://github.com/nikhilunni/demucs-rs)
 - A Metal-capable Apple Silicon Mac
 
@@ -55,6 +55,10 @@ Return to the MakeStem checkout, then build and open the app:
 ./scripts/build-mac-app.sh
 open build/MakeStem.app
 ```
+
+The native project is available at `macos/MakeStem.xcodeproj`. The scripted
+build uses the shared MakeStem scheme and produces the same validated app in
+`build/`.
 
 This development build is ad-hoc signed for local testing. You can move it
 into `/Applications` on the Mac that built it.

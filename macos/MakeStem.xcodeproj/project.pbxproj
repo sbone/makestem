@@ -1,0 +1,180 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A10000000000000000000001 /* MakeStemApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000001 /* MakeStemApp.swift */; };
+		A10000000000000000000002 /* THIRD_PARTY_NOTICES.md in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* THIRD_PARTY_NOTICES.md */; };
+		A10000000000000000000003 /* MakeStemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* MakeStemTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A30000000000000000000001 = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A40000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A50000000000000000000001;
+			remoteInfo = MakeStem;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		A20000000000000000000001 /* MakeStemApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MakeStemApp.swift; sourceTree = "<group>"; };
+		A20000000000000000000002 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A20000000000000000000003 /* THIRD_PARTY_NOTICES.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; name = "THIRD_PARTY_NOTICES.md"; path = ../THIRD_PARTY_NOTICES.md; sourceTree = "<group>"; };
+		A20000000000000000000004 /* MakeStemTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MakeStemTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000005 /* MakeStem.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MakeStem.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000000000000000000006 /* MakeStemTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MakeStemTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A60000000000000000000001 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		A60000000000000000000002 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		A70000000000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				A70000000000000000000002 /* MakeStem */,
+				A70000000000000000000003 /* MakeStemTests */,
+				A70000000000000000000004 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		A70000000000000000000002 /* MakeStem */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000001 /* MakeStemApp.swift */,
+				A20000000000000000000002 /* Info.plist */,
+				A20000000000000000000003 /* THIRD_PARTY_NOTICES.md */,
+			);
+			name = MakeStem;
+			sourceTree = "<group>";
+		};
+		A70000000000000000000003 /* MakeStemTests */ = {
+			isa = PBXGroup;
+			children = (A20000000000000000000004 /* MakeStemTests.swift */);
+			path = MakeStemTests;
+			sourceTree = "<group>";
+		};
+		A70000000000000000000004 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000005 /* MakeStem.app */,
+				A20000000000000000000006 /* MakeStemTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A50000000000000000000001 /* MakeStem */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA0000000000000000000001 /* Build configuration list for PBXNativeTarget "MakeStem" */;
+			buildPhases = (
+				A80000000000000000000001 /* Sources */,
+				A60000000000000000000001 /* Frameworks */,
+				A90000000000000000000001 /* Resources */,
+				AB0000000000000000000001 /* Embed processing tools */,
+			);
+			buildRules = ();
+			dependencies = ();
+			name = MakeStem;
+			productName = MakeStem;
+			productReference = A20000000000000000000005 /* MakeStem.app */;
+			productType = "com.apple.product-type.application";
+		};
+		A50000000000000000000002 /* MakeStemTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = AA0000000000000000000002 /* Build configuration list for PBXNativeTarget "MakeStemTests" */;
+			buildPhases = (
+				A80000000000000000000002 /* Sources */,
+				A60000000000000000000002 /* Frameworks */,
+				A90000000000000000000002 /* Resources */,
+			);
+			buildRules = ();
+			dependencies = (AC0000000000000000000001 /* PBXTargetDependency */);
+			name = MakeStemTests;
+			productName = MakeStemTests;
+			productReference = A20000000000000000000006 /* MakeStemTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		A40000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2630;
+				LastUpgradeCheck = 2630;
+				TargetAttributes = {
+					A50000000000000000000001 = {CreatedOnToolsVersion = 26.3;};
+					A50000000000000000000002 = {CreatedOnToolsVersion = 26.3; TestTargetID = A50000000000000000000001;};
+				};
+			};
+			buildConfigurationList = AA0000000000000000000003 /* Build configuration list for PBXProject "MakeStem" */;
+			compatibilityVersion = "Xcode 16.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (en, Base);
+			mainGroup = A70000000000000000000001;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = A70000000000000000000004 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (A50000000000000000000001 /* MakeStem */, A50000000000000000000002 /* MakeStemTests */);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		A90000000000000000000001 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000002 /* THIRD_PARTY_NOTICES.md in Resources */); runOnlyForDeploymentPostprocessing = 0; };
+		A90000000000000000000002 /* Resources */ = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		AB0000000000000000000001 /* Embed processing tools */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = ();
+			inputPaths = ();
+			name = "Embed processing tools";
+			outputPaths = ();
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/zsh;
+			shellScript = "set -euo pipefail\nrepo_root=\"$SRCROOT/..\"\nresources=\"$TARGET_BUILD_DIR/$UNLOCALIZED_RESOURCES_FOLDER_PATH\"\nhelpers=\"$TARGET_BUILD_DIR/$CONTENTS_FOLDER_PATH/Helpers\"\ntools=\"$repo_root/build/dependencies/bin\"\ndemucs_path=\"${MAKESTEM_DEMUCS_PATH:-$(command -v demucs || true)}\"\n[[ -x \"$tools/ffmpeg\" && -x \"$tools/ffprobe\" ]] || { echo \"error: Run ./scripts/build-ffmpeg-macos.sh first.\"; exit 1; }\n[[ -n \"$demucs_path\" && -x \"$demucs_path\" ]] || { echo \"error: Demucs was not found.\"; exit 1; }\ncd \"$repo_root\"\nMACOSX_DEPLOYMENT_TARGET=14.0 cargo build --release --locked\nmkdir -p \"$helpers\" \"$resources/bin\" \"$resources/Licenses\"\ncp target/release/makestem \"$helpers/makestem\"\ncp \"$demucs_path\" \"$resources/bin/demucs\"\ncp \"$tools/ffmpeg\" \"$resources/bin/ffmpeg\"\ncp \"$tools/ffprobe\" \"$resources/bin/ffprobe\"\ncp build/dependencies/licenses/* \"$resources/Licenses/\"\ncp THIRD_PARTY_NOTICES.md \"$resources/Third-Party Notices.md\"\nidentity=\"${EXPANDED_CODE_SIGN_IDENTITY:--}\"\nfor executable in \"$helpers/makestem\" \"$resources/bin/demucs\" \"$resources/bin/ffmpeg\" \"$resources/bin/ffprobe\"; do\n  codesign --force --sign \"$identity\" \"$executable\"\ndone\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		A80000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001 /* MakeStemApp.swift in Sources */); runOnlyForDeploymentPostprocessing = 0; };
+		A80000000000000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000003 /* MakeStemTests.swift in Sources */); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		AC0000000000000000000001 /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = A50000000000000000000001 /* MakeStem */; targetProxy = A30000000000000000000001; };
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		AD0000000000000000000001 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; ARCHS = arm64; CLANG_ENABLE_MODULES = YES; CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; COMBINE_HIDPI_IMAGES = YES; CURRENT_PROJECT_VERSION = 1; ENABLE_HARDENED_RUNTIME = NO; ENABLE_TESTABILITY = YES; ENABLE_USER_SCRIPT_SANDBOXING = NO; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Info.plist; MACOSX_DEPLOYMENT_TARGET = 14.0; MARKETING_VERSION = 0.1.0; ONLY_ACTIVE_ARCH = YES; PRODUCT_BUNDLE_IDENTIFIER = com.stevenbone.makestem; PRODUCT_NAME = MakeStem; SDKROOT = macosx; SWIFT_VERSION = 5.0; }; name = Debug; };
+		AD0000000000000000000002 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ALWAYS_SEARCH_USER_PATHS = NO; CLANG_ENABLE_MODULES = YES; CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; COMBINE_HIDPI_IMAGES = YES; CURRENT_PROJECT_VERSION = 1; ENABLE_HARDENED_RUNTIME = YES; ENABLE_USER_SCRIPT_SANDBOXING = NO; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = Info.plist; MACOSX_DEPLOYMENT_TARGET = 14.0; MARKETING_VERSION = 0.1.0; PRODUCT_BUNDLE_IDENTIFIER = com.stevenbone.makestem; PRODUCT_NAME = MakeStem; SDKROOT = macosx; SWIFT_COMPILATION_MODE = wholemodule; SWIFT_VERSION = 5.0; }; name = Release; };
+		AD0000000000000000000003 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {BUNDLE_LOADER = "$(TEST_HOST)"; CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; GENERATE_INFOPLIST_FILE = YES; MACOSX_DEPLOYMENT_TARGET = 14.0; PRODUCT_BUNDLE_IDENTIFIER = com.stevenbone.makestem.tests; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = macosx; SWIFT_VERSION = 5.0; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MakeStem.app/Contents/MacOS/MakeStem"; }; name = Debug; };
+		AD0000000000000000000004 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {BUNDLE_LOADER = "$(TEST_HOST)"; CODE_SIGN_IDENTITY = "-"; CODE_SIGN_STYLE = Manual; GENERATE_INFOPLIST_FILE = YES; MACOSX_DEPLOYMENT_TARGET = 14.0; PRODUCT_BUNDLE_IDENTIFIER = com.stevenbone.makestem.tests; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = macosx; SWIFT_VERSION = 5.0; TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MakeStem.app/Contents/MacOS/MakeStem"; }; name = Release; };
+		AD0000000000000000000005 /* Debug */ = {isa = XCBuildConfiguration; buildSettings = {ARCHS = arm64; CLANG_ENABLE_MODULES = YES; MACOSX_DEPLOYMENT_TARGET = 14.0; SDKROOT = macosx;}; name = Debug; };
+		AD0000000000000000000006 /* Release */ = {isa = XCBuildConfiguration; buildSettings = {ARCHS = arm64; CLANG_ENABLE_MODULES = YES; MACOSX_DEPLOYMENT_TARGET = 14.0; SDKROOT = macosx;}; name = Release; };
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		AA0000000000000000000001 /* Build configuration list for PBXNativeTarget "MakeStem" */ = {isa = XCConfigurationList; buildConfigurations = (AD0000000000000000000001 /* Debug */, AD0000000000000000000002 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		AA0000000000000000000002 /* Build configuration list for PBXNativeTarget "MakeStemTests" */ = {isa = XCConfigurationList; buildConfigurations = (AD0000000000000000000003 /* Debug */, AD0000000000000000000004 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		AA0000000000000000000003 /* Build configuration list for PBXProject "MakeStem" */ = {isa = XCConfigurationList; buildConfigurations = (AD0000000000000000000005 /* Debug */, AD0000000000000000000006 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+/* End XCConfigurationList section */
+	};
+	rootObject = A40000000000000000000001 /* Project object */;
+}

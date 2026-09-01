@@ -16,6 +16,16 @@ cargo clippy --locked --all-targets -- -D warnings
 echo "==> Building pinned FFmpeg tools"
 ./scripts/build-ffmpeg-macos.sh
 
+echo "==> Swift unit tests"
+xcodebuild \
+  -project macos/MakeStem.xcodeproj \
+  -scheme MakeStem \
+  -configuration Debug \
+  -destination 'platform=macOS' \
+  -derivedDataPath build/xcode-tests \
+  CODE_SIGN_IDENTITY=- \
+  test
+
 echo "==> Building Mac app"
 ./scripts/build-mac-app.sh
 

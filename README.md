@@ -2,121 +2,48 @@
 
 **Find the blend live. Finish it with MakeStem.**
 
-Real-time tools such as Serato Stems are invaluable for experimenting: try an idea immediately, discover an unexpected pairing, and find the blends worth finishing. When a real-time separation sounds artifact-heavy or gets part of a track wrong, MakeStem takes the slower, higher-quality route.
+MakeStem turns a full track into a high-quality acapella, instrumental, or
+both—ready for recorded and shareable DJ blends.
 
-MakeStem creates pre-processed acapellas and instrumentals for recorded and shareable DJ blends. It runs a fine-tuned Demucs audio-separation model, mixes instrumental stems, encodes source-aware MP3s, preserves metadata, and keeps the results organized. After the model is downloaded, every operation runs locally on your computer and your tracks never leave it.
+Drop in a FLAC, WAV, AIFF, or MP3. MakeStem checks the track, separates it on
+your Mac, and saves DJ-ready MP3s beside the original. Your music is never
+uploaded.
+
+Serato Stems is invaluable for discovering blends live. When you find one
+worth recording and sharing, MakeStem takes the slower, higher-quality route.
 
 > Serato Stems helps you discover the blend. MakeStem helps you finish it.
 
-MakeStem is an independent project and is not affiliated with or endorsed by Serato.
-
-## What it does
-
-- Creates an acapella, an instrumental, or both from a full mix.
-- Uses the fine-tuned `htdemucs_ft` audio-separation model for separation quality.
-- Combines the drums, bass, and other stems into one instrumental.
-- Produces MP3 files in an `output/` directory beside the source, matching compressed-source quality without needless up-encoding.
-- Copies source metadata and adds `(Acapella)` or `(Instrumental)` to the title.
-- Shows each processing stage and turns noisy tool failures into concise, useful guidance.
-- Downloads the model weights once, then processes everything locally; your audio is never uploaded.
+MakeStem is an independent project and is not affiliated with or endorsed by
+Serato.
 
 ## Mac app
 
-The initial Mac app supports Apple Silicon and macOS 14 or newer. A
-downloadable, notarized DMG is planned. The app bundle includes Demucs,
-FFmpeg, and FFprobe; friends will not need Homebrew, Rust, or Terminal.
+MakeStem supports Apple Silicon Macs running macOS 14 or newer. A notarized,
+drag-to-install download is being prepared; until it is published, developers
+can [build the app from source](#build-the-mac-app).
 
-### Build from source
+### Create stems
 
-Building the app itself currently requires:
+1. Drop a track into MakeStem, or choose one from Finder.
+2. Choose **Both**, **Acapella**, or **Instrumental**.
+3. Select **Create Stems** and follow the progress.
+4. Reveal the finished files in Finder.
 
-- A current [Rust toolchain](https://rustup.rs/)
-- Xcode 26 or newer with its command-line tools selected
-- The native [demucs-rs CLI](https://github.com/nikhilunni/demucs-rs)
-- A Metal-capable Apple Silicon Mac
+FLAC, WAV, and AIFF sources are recommended. MP3, OGG, M4A, and AAC also work,
+but MakeStem warns when a compressed source might produce less-clean stems.
 
-Build MakeStem's pinned, self-contained FFmpeg tools:
+The first run downloads the 336 MB `htdemucs_ft` audio model. MakeStem verifies
+the download and keeps it for later use. After that download, all processing
+happens locally.
 
-```sh
-./scripts/build-ffmpeg-macos.sh
-```
-
-Install the native Demucs CLI from its source checkout:
-
-```sh
-git clone https://github.com/nikhilunni/demucs-rs.git
-cd demucs-rs
-cargo install --path demucs-cli --locked
-```
-
-Return to the MakeStem checkout, then build and open the app:
-
-```sh
-./scripts/build-mac-app.sh
-open build/MakeStem.app
-```
-
-The native project is available at `macos/MakeStem.xcodeproj`. The scripted
-build uses the shared MakeStem scheme and produces the same validated app in
-`build/`.
-
-This development build is ad-hoc signed for local testing. You can move it
-into `/Applications` on the Mac that built it.
-
-The app identifies a missing model on first run and offers to download the
-336 MB `htdemucs_ft` model. MakeStem verifies the completed download and
-caches it for later runs. After that, separation and encoding happen locally
-and your tracks never leave your Mac.
-
-### Use the app
-
-1. Drop a track into the MakeStem window, or choose one from Finder.
-2. Review the source check. Lossless FLAC, WAV, and AIFF files are recommended. Compressed files receive a warning but can still be processed.
-3. Choose **Both**, **Acapella**, or **Instrumental**.
-4. Select **Create Stems** and follow the live separation progress.
-5. When processing finishes, reveal the results in Finder or process another track.
-
-Model downloads and audio processing can be cancelled. MakeStem removes
-incomplete downloads, temporary stems, and partial output from a cancelled
-job so it is safe to retry.
-
-MakeStem blocks files it cannot process reliably, such as unreadable files, unsupported containers, files with no audio stream, and multichannel audio. Errors include concise guidance when possible.
-
-## CLI
-
-Install the command from this checkout:
-
-```sh
-cargo install --path . --locked
-```
-
-Confirm it is available:
-
-```sh
-makestem --help
-```
-
-If your shell cannot find it, add Cargo's binary directory to your `PATH`:
-
-```sh
-export PATH="$HOME/.cargo/bin:$PATH"
-```
-
-Add that line to `~/.zshrc` to keep it across new terminal sessions.
-
-Change into the folder containing a track, then run:
-
-```sh
-makestem -a "Track Title.flac"   # acapella only
-makestem -i "Track Title.flac"   # instrumental only
-makestem "Track Title.flac"      # both
-```
-
-Quotes are recommended for filenames containing spaces. MakeStem passes paths directly to its tools, so punctuation and Unicode filenames are safe and are not interpreted as shell commands.
+You can cancel a model download or separation and retry without leaving partial
+files behind. If a track is damaged, unsupported, missing audio, or cannot be
+read or saved, MakeStem gives concise guidance about what to try next.
 
 ## Output
 
-The app and CLI use the same output behavior. Results are placed in an `output/` directory beside the source track:
+Results appear in an `output` folder beside the source track:
 
 ```text
 output/
@@ -124,34 +51,74 @@ output/
 └── Track Title (Instrumental).mp3
 ```
 
-Lossless sources produce 320 kbps MP3s. For compressed sources, MakeStem caps
-the output at the detected source quality; VBR MP3s retain an appropriate LAME
-VBR profile. If a compressed file does not report a usable bitrate, MakeStem
-uses a conservative 192 kbps fallback. The Mac app previews the choice before
-processing. Source metadata is copied and the appropriate output suffix is
-added to the track title.
+MakeStem preserves source metadata and adds `(Acapella)` or `(Instrumental)` to
+the track title. Lossless sources produce 320 kbps MP3s. Compressed sources are
+never needlessly up-encoded: output quality is capped at the detected source
+quality, including an appropriate profile for VBR MP3s.
 
-MakeStem never silently overwrites an existing stem. The Mac app asks before
-replacing files; the CLI requires an explicit `--replace`. New stems are fully
-encoded before replacement begins, so a failure or cancellation preserves the
-previous files.
+Existing stems are never silently overwritten. The app asks first, creates the
+replacement completely, and preserves the old file if processing fails or is
+cancelled.
 
-## When something goes wrong
+## Command line
 
-Audio from the wild can contain incomplete downloads, damaged containers, unusual codecs, malformed tags, or unexpected characters. MakeStem checks the source before starting a long separation and keeps errors short. When possible, it distinguishes an application failure from a source-file, model, codec, permission, or disk-space problem and suggests what to try next.
+The CLI is intended for people comfortable with Terminal. It requires Demucs,
+FFmpeg, and FFprobe on your `PATH`.
+
+From this checkout:
+
+```sh
+cargo install --path . --locked
+```
+
+Then change into a folder containing a track and run:
+
+```sh
+makestem -a "Track Title.flac"   # acapella only
+makestem -i "Track Title.flac"   # instrumental only
+makestem "Track Title.flac"      # both
+```
+
+Use `--replace` to replace an existing requested output. Quotes protect paths
+containing spaces; punctuation and Unicode filenames are supported.
+
+## Build the Mac app
+
+Building requires a current [Rust toolchain](https://rustup.rs/), Xcode 26 or
+newer, and a Metal-capable Apple Silicon Mac.
+
+Install the native [demucs-rs CLI](https://github.com/nikhilunni/demucs-rs):
+
+```sh
+git clone https://github.com/nikhilunni/demucs-rs.git
+cd demucs-rs
+cargo install --path demucs-cli --locked
+```
+
+From the MakeStem checkout, build the pinned FFmpeg tools and app:
+
+```sh
+./scripts/build-ffmpeg-macos.sh
+./scripts/build-mac-app.sh
+open build/MakeStem.app
+```
+
+The resulting development build is ad-hoc signed for local testing. The Xcode
+project is at `macos/MakeStem.xcodeproj`.
 
 ## Development
+
+Run every automated check:
 
 ```sh
 ./scripts/test-all.sh
 ```
 
-This runs formatting, Rust unit and CLI contract tests, strict linting, the
-complete Mac app build, and packaged-app validation. The bundle audit checks
-deployment targets, architecture, bundled tools and codecs, non-system
-linkage, licenses, metadata, and code signatures.
+This checks Rust formatting, tests, and linting; runs the Swift tests; builds
+the complete app; and validates its bundled tools, licenses, metadata,
+deployment target, architecture, and signatures.
 
-An optional real Demucs smoke test creates an acapella from a supplied track:
+To include a slow, real Demucs separation using a short disposable track:
 
 ```sh
 MAKESTEM_REAL_AUDIO_SMOKE=1 \
@@ -159,44 +126,25 @@ MAKESTEM_SMOKE_TRACK="/path/to/short-test.flac" \
 ./scripts/test-all.sh
 ```
 
-The real-audio tier is opt-in because it is slow and writes an acapella to the
-track's neighboring `output/` directory. Use a short, disposable test file.
+## Create a direct-download release
 
-### Direct-download release
+Releases use a locally installed **Developer ID Application** certificate and a
+notarization profile stored in the macOS Keychain. Credentials are never kept
+in this repository.
 
-MakeStem is distributed outside the Mac App Store as a standard drag-to-install
-DMG. A release requires one locally installed **Developer ID Application**
-certificate and a notarization profile stored in the macOS Keychain:
-
-```sh
-xcrun notarytool store-credentials "MakeStem Notary" \
-  --apple-id "YOUR_APPLE_ID" \
-  --team-id "YOUR_TEAM_ID"
-```
-
-The command prompts for an app-specific password and stores it in Keychain; no
-credentials belong in this repository. Create a local signed DMG without any
-upload first:
+Create a signed DMG locally:
 
 ```sh
 ./scripts/release-macos.sh
 ```
 
-Once that succeeds, create the distributable release and send only the finished
-DMG to Apple's notarization service:
+Create the distributable DMG, submit it to Apple, and staple the notarization
+ticket:
 
 ```sh
 ./scripts/release-macos.sh --notarize
 ```
 
-The pipeline runs all checks, signs the app and bundled tools with hardened
-runtime and secure timestamps, creates `dist/MakeStem-VERSION.dmg`, notarizes
-and staples it, verifies Gatekeeper acceptance, and writes a SHA-256 checksum.
-Use `MAKESTEM_NOTARY_PROFILE` only if the Keychain profile has a different name.
-The script never reads or prints the notarization password.
-
-The Mac build bundles compatible Demucs, FFmpeg, and FFprobe executables. A
-release downloads only the audio-separation model on first use, verifies its
-integrity, and then processes tracks locally.
-
-Longer term, MakeStem may support multiple audio-separation models, since different models can perform better on different kinds of music. The goal is model choice without model complexity: strong defaults first, with other local models available when a difficult track benefits from another approach.
+The finished `dist/MakeStem-VERSION.dmg` includes MakeStem, Demucs, FFmpeg, and
+FFprobe. Friends only download the audio model on first use; they do not need
+Homebrew, Rust, Xcode, or Terminal.

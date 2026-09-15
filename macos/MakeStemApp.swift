@@ -88,6 +88,7 @@ final class AppModel: ObservableObject {
     @Published var isDropTarget = false
     private var currentOperation: EventOperation?
     private var currentOperationID: UUID?
+    private var inspectionID: UUID?
 
     var isDownloadingModel: Bool {
         if case .downloading = modelState { return true }
@@ -103,15 +104,26 @@ final class AppModel: ObservableObject {
     }
 
     func inspect(_ url: URL) {
+        let inspectionID = UUID()
+        self.inspectionID = inspectionID
         state = .inspecting(url.lastPathComponent)
         Task {
             do {
                 let result = try await Task.detached { try Engine.inspect(url) }.value
+                guard self.inspectionID == inspectionID else { return }
                 state = .inspected(result)
             } catch {
+                guard self.inspectionID == inspectionID else { return }
                 state = .failed(error.localizedDescription)
             }
         }
+    }
+
+    func reportDropFailure(_ detail: String?) {
+        let detail = detail.map { "\n\n\($0)" } ?? ""
+        state = .failed(
+            "Couldn’t open the dropped item.\(detail)\n\nChoose Another Track and select an audio file."
+        )
     }
 
     func process(_ inspection: Inspection, choice: OutputChoice, replace: Bool) {
@@ -313,6 +325,9 @@ enum Engine {
     ) -> EventOperation {
         let controller = ProcessController(cleanup: cleanup)
         let events = AsyncThrowingStream<EngineEvent, Error> { continuation in
+            continuation.onTermination = { termination in
+                if case .cancelled = termination { controller.cancel() }
+            }
             Task.detached {
                 do {
                     try run(arguments: arguments, controller: controller) { continuation.yield($0) }
@@ -649,11 +664,10 @@ struct ContentView: View {
                     Text("Download needs attention").font(.caption).foregroundStyle(.secondary)
                 }
             }
-            Button {
+            Button("About the audio model", systemImage: "info.circle") {
                 showsModelInfo.toggle()
-            } label: {
-                Image(systemName: "info.circle")
             }
+            .labelStyle(.iconOnly)
             .buttonStyle(.plain)
             .foregroundStyle(.secondary)
             .help("About the audio model")
@@ -713,8 +727,12 @@ struct ContentView: View {
         .overlay(RoundedRectangle(cornerRadius: 18).stroke(model.isDropTarget ? Color.accentColor : .secondary.opacity(0.25), lineWidth: 2))
         .onDrop(of: [.fileURL], isTargeted: $model.isDropTarget) { providers in
             guard let provider = providers.first else { return false }
-            provider.loadDataRepresentation(forTypeIdentifier: UTType.fileURL.identifier) { data, _ in
-                guard let data, let url = URL(dataRepresentation: data, relativeTo: nil) else { return }
+            provider.loadDataRepresentation(forTypeIdentifier: UTType.fileURL.identifier) { data, error in
+                guard let data, let url = URL(dataRepresentation: data, relativeTo: nil) else {
+                    let detail = error?.localizedDescription
+                    Task { @MainActor in model.reportDropFailure(detail) }
+                    return
+                }
                 Task { @MainActor in model.inspect(url) }
             }
             return true

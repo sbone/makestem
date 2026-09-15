@@ -2,6 +2,19 @@ import XCTest
 @testable import MakeStem
 
 final class MakeStemTests: XCTestCase {
+    @MainActor
+    func testDroppedItemFailureIncludesRecoveryAction() {
+        let model = AppModel()
+
+        model.reportDropFailure("The provider returned unexpected data.")
+
+        guard case .failed(let message) = model.state else {
+            return XCTFail("Expected a failed state")
+        }
+        XCTAssertTrue(message.contains("unexpected data"))
+        XCTAssertTrue(message.contains("Choose Another Track"))
+    }
+
     func testOutputURLsMatchEveryChoice() {
         let source = URL(fileURLWithPath: "/Music/A Track.flac")
 

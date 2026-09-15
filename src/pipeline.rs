@@ -1156,6 +1156,11 @@ mod tests {
             .collect::<Vec<_>>();
 
         assert!(args.windows(2).any(|pair| pair == ["-map", "[mixed]"]));
+        assert!(args.windows(2).any(|pair| pair == ["-map_metadata", "3"]));
+        assert!(
+            args.windows(2)
+                .any(|pair| pair == ["-metadata", "title=Track (Instrumental)"])
+        );
         assert!(args.iter().any(|arg| arg.ends_with("normalize=0[mixed]")));
         assert!(args.windows(2).any(|pair| pair == ["-b:a", "192k"]));
     }
@@ -1177,6 +1182,12 @@ mod tests {
         .collect::<Vec<_>>();
 
         assert!(args.windows(2).any(|pair| pair == ["-q:a", "2"]));
+        assert!(args.windows(2).any(|pair| pair == ["-map", "0:a:0"]));
+        assert!(args.windows(2).any(|pair| pair == ["-map_metadata", "1"]));
+        assert!(
+            args.windows(2)
+                .any(|pair| pair == ["-metadata", "title=Track (Acapella)"])
+        );
         assert!(!args.iter().any(|arg| arg == "-b:a"));
     }
 

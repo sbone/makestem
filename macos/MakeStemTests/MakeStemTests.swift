@@ -17,6 +17,15 @@ final class MakeStemTests: XCTestCase {
             Engine.outputURLs(source, choice: .both).map(\.lastPathComponent),
             ["A Track (Acapella).mp3", "A Track (Instrumental).mp3"]
         )
+
+        let unusual = URL(fileURLWithPath: "/Music/Beyoncé – [DJ's Mix] 🎧.aiff")
+        XCTAssertEqual(
+            Engine.outputURLs(unusual, choice: .both).map(\.lastPathComponent),
+            [
+                "Beyoncé – [DJ's Mix] 🎧 (Acapella).mp3",
+                "Beyoncé – [DJ's Mix] 🎧 (Instrumental).mp3"
+            ]
+        )
     }
 
     func testRemainingTimeRequiresMeasuredProgress() {

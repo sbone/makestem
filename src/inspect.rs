@@ -176,13 +176,15 @@ pub fn inspect_audio(path: &Path) -> Result<AudioInspection, String> {
                 .to_owned(),
         )
     };
-    let title = format
-        .as_ref()
-        .and_then(|format| format.tags.as_ref())
-        .and_then(|tags| tags.title.clone())
-        .filter(|title| !title.trim().is_empty())
-        .or_else(|| path.file_stem().and_then(OsStr::to_str).map(str::to_owned))
-        .unwrap_or_else(|| "Untitled".to_owned());
+    let title = clean_text(
+        &format
+            .as_ref()
+            .and_then(|format| format.tags.as_ref())
+            .and_then(|tags| tags.title.clone())
+            .filter(|title| !title.trim().is_empty())
+            .or_else(|| path.file_stem().and_then(OsStr::to_str).map(str::to_owned))
+            .unwrap_or_else(|| "Untitled".to_owned()),
+    );
     let bit_depth = stream
         .bits_per_raw_sample
         .as_deref()
@@ -225,6 +227,27 @@ pub fn inspect_audio(path: &Path) -> Result<AudioInspection, String> {
         readiness,
         message,
     })
+}
+
+fn clean_text(value: &str) -> String {
+    let cleaned = value
+        .chars()
+        .map(|character| {
+            if character.is_control() {
+                ' '
+            } else {
+                character
+            }
+        })
+        .collect::<String>()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+    if cleaned.is_empty() {
+        "Untitled".to_owned()
+    } else {
+        cleaned
+    }
 }
 
 pub fn encoding_for_audio(path: &Path) -> Result<Mp3Encoding, String> {

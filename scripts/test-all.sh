@@ -45,6 +45,18 @@ if [[ "${MAKESTEM_REAL_AUDIO_SMOKE:-0}" == "1" ]]; then
   PATH="$repo_root/build/MakeStem.app/Contents/Resources/bin:/usr/bin:/bin" \
     "$repo_root/build/MakeStem.app/Contents/Helpers/makestem" \
     --acapella "$MAKESTEM_SMOKE_TRACK"
+  smoke_output="${MAKESTEM_SMOKE_TRACK:h}/output/${MAKESTEM_SMOKE_TRACK:t:r} (Acapella).mp3"
+  [[ -s "$smoke_output" ]] || {
+    echo "Smoke-test output was not created: $smoke_output" >&2
+    exit 1
+  }
+  smoke_title="$("$repo_root/build/dependencies/bin/ffprobe" -v error \
+    -show_entries format_tags=title -of default=noprint_wrappers=1:nokey=1 \
+    "$smoke_output")"
+  [[ "$smoke_title" == *" (Acapella)" ]] || {
+    echo "Smoke-test output title is incorrect: $smoke_title" >&2
+    exit 1
+  }
 fi
 
 echo "==> All checks passed"

@@ -3,3 +3,4 @@
 /dist
 /.makestem-work-*
 .DS_Store
+/macos/Assets.xcassets/AppIcon.appiconset/*.png

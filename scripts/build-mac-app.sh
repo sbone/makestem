@@ -11,6 +11,9 @@ if [[ "$identity" != "-" ]]; then
 fi
 
 cd "$repo_root"
+if [[ -f "$repo_root/artwork/MakeStemIcon.png" ]]; then
+  ./scripts/build-app-icon.sh
+fi
 xcodebuild \
   -quiet \
   -project "$project" \

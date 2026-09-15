@@ -49,6 +49,8 @@ find_identity() {
 }
 
 cd "$repo_root"
+[[ -f "$repo_root/artwork/MakeStemIcon.png" ]] || fail \
+  "The release icon is missing. Add artwork/MakeStemIcon.png and run ./scripts/build-app-icon.sh."
 identity="$(find_identity)"
 [[ -n "$identity" && "$identity" != "-" ]] || fail "A Developer ID Application identity is required."
 

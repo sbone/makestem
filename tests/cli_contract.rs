@@ -170,3 +170,73 @@ esac
     );
     assert_eq!(fs::read(existing).unwrap(), b"original stem");
 }
+
+#[test]
+fn damaged_audio_returns_concise_guidance() {
+    let temporary = TestDirectory::new("damaged-audio");
+    let tools = temporary.path().join("tools");
+    fs::create_dir(&tools).unwrap();
+    write_executable(
+        &tools.join("ffprobe"),
+        "#!/bin/sh\nprintf '%s\\n' 'moov atom not found' >&2\nexit 1\n",
+    );
+    write_executable(&tools.join("ffmpeg"), "#!/bin/sh\nexit 0\n");
+    write_executable(&tools.join("demucs"), "#!/bin/sh\nexit 0\n");
+    let track = temporary.path().join("odd ‘tag’ 🎧.m4a");
+    fs::write(&track, b"damaged fixture").unwrap();
+
+    let output = Command::new(executable())
+        .args(["--events-json", track.to_str().unwrap()])
+        .env("PATH", &tools)
+        .output()
+        .unwrap();
+
+    assert!(!output.status.success());
+    let error = json_lines(&output).pop().unwrap();
+    assert_eq!(error["type"], "error");
+    assert!(
+        error["message"]
+            .as_str()
+            .unwrap()
+            .contains("odd ‘tag’ 🎧.m4a")
+    );
+    assert!(
+        error["guidance"]
+            .as_str()
+            .unwrap()
+            .contains("damaged or incomplete")
+    );
+}
+
+#[test]
+fn file_without_audio_returns_specific_guidance() {
+    let temporary = TestDirectory::new("no-audio");
+    let tools = temporary.path().join("tools");
+    fs::create_dir(&tools).unwrap();
+    write_executable(&tools.join("ffprobe"), "#!/bin/sh\nexit 0\n");
+    write_executable(&tools.join("ffmpeg"), "#!/bin/sh\nexit 0\n");
+    write_executable(&tools.join("demucs"), "#!/bin/sh\nexit 0\n");
+    let track = temporary.path().join("cover.wav");
+    fs::write(&track, b"fixture").unwrap();
+
+    let output = Command::new(executable())
+        .args(["--events-json", track.to_str().unwrap()])
+        .env("PATH", &tools)
+        .output()
+        .unwrap();
+
+    assert!(!output.status.success());
+    let error = json_lines(&output).pop().unwrap();
+    assert!(
+        error["message"]
+            .as_str()
+            .unwrap()
+            .contains("does not contain an audio stream")
+    );
+    assert!(
+        error["guidance"]
+            .as_str()
+            .unwrap()
+            .contains("rather than artwork")
+    );
+}

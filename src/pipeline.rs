@@ -96,12 +96,17 @@ impl Pipeline {
             ));
         }
         if !input.is_file() {
-            return Err(PipelineError::new(format!(
-                "‘{}’ is not a file.",
-                display_path(input)
-            )));
+            return Err(PipelineError::guided(
+                format!("‘{}’ is not a file.", display_path(input)),
+                "Choose an audio file rather than a folder or shortcut.",
+            ));
         }
-        let input = fs::canonicalize(input).map_err(|e| PipelineError::new(e.to_string()))?;
+        let input = fs::canonicalize(input).map_err(|e| {
+            PipelineError::guided(
+                format!("Could not open ‘{}’: {e}", display_path(input)),
+                "Check that the file still exists and MakeStem has permission to read it.",
+            )
+        })?;
         validate_audio(&input)?;
         let encoding = encoding_for_audio(&input).map_err(PipelineError::new)?;
         let parent = input.parent().unwrap_or_else(|| Path::new("."));
@@ -169,9 +174,19 @@ impl Pipeline {
             ));
         }
         if self.work_dir.exists() {
-            fs::remove_dir_all(&self.work_dir).map_err(|e| PipelineError::new(e.to_string()))?;
+            fs::remove_dir_all(&self.work_dir).map_err(|e| {
+                PipelineError::guided(
+                    format!("Could not clear temporary files: {e}"),
+                    "Check the source folder’s permissions, then retry.",
+                )
+            })?;
         }
-        fs::create_dir_all(&self.work_dir).map_err(|e| PipelineError::new(e.to_string()))?;
+        fs::create_dir_all(&self.work_dir).map_err(|e| {
+            PipelineError::guided(
+                format!("Could not create the temporary work folder: {e}"),
+                "Check the source folder’s permissions and available disk space, then retry.",
+            )
+        })?;
 
         let result = self.run_inner(products, replace, reporter);
         let _ = fs::remove_dir_all(&self.work_dir);
@@ -419,7 +434,12 @@ pub fn prepare_model(reporter: &mut impl Reporter) -> Result<PathBuf> {
         })?;
     }
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| PipelineError::new(e.to_string()))?;
+        fs::create_dir_all(parent).map_err(|e| {
+            PipelineError::guided(
+                format!("Could not create the model cache folder: {e}"),
+                "Check that your Library/Caches folder is writable, then retry.",
+            )
+        })?;
         ensure_download_space(parent)?;
     }
 
@@ -460,17 +480,32 @@ pub fn prepare_model(reporter: &mut impl Reporter) -> Result<PathBuf> {
 }
 
 fn validate_model(path: &Path) -> Result<()> {
-    let metadata = fs::metadata(path).map_err(|e| PipelineError::new(e.to_string()))?;
+    let metadata = fs::metadata(path).map_err(|e| {
+        PipelineError::guided(
+            format!("Could not inspect the audio-separation model: {e}"),
+            "Check the model file’s permissions, then try the download again.",
+        )
+    })?;
     if metadata.len() != MODEL_SIZE {
         return Err(PipelineError::guided(
             "The audio-separation model download is incomplete.",
             "Try the model download again. MakeStem will replace the partial file.",
         ));
     }
-    let file = fs::File::open(path).map_err(|e| PipelineError::new(e.to_string()))?;
+    let file = fs::File::open(path).map_err(|e| {
+        PipelineError::guided(
+            format!("Could not read the audio-separation model: {e}"),
+            "Check the model file’s permissions, then try the download again.",
+        )
+    })?;
     let mut reader = BufReader::new(file);
     let mut hasher = Sha256::new();
-    io::copy(&mut reader, &mut hasher).map_err(|e| PipelineError::new(e.to_string()))?;
+    io::copy(&mut reader, &mut hasher).map_err(|e| {
+        PipelineError::guided(
+            format!("Could not verify the audio-separation model: {e}"),
+            "Check the model file and disk, then try the download again.",
+        )
+    })?;
     let digest = format!("{:x}", hasher.finalize());
     if digest != MODEL_SHA256 {
         return Err(PipelineError::guided(
@@ -512,7 +547,7 @@ fn require_tool(tool: &str, guidance: &str) -> Result<()> {
         if e.kind() == io::ErrorKind::NotFound {
             PipelineError::guided(format!("Required tool `{tool}` was not found."), guidance)
         } else {
-            PipelineError::new(format!("Could not run `{tool}`: {e}"))
+            PipelineError::guided(format!("Could not run `{tool}`: {e}"), guidance)
         }
     })?;
     Ok(())
@@ -525,10 +560,12 @@ fn run_stage(
     reporter: &mut impl Reporter,
 ) -> Result<()> {
     reporter.report(Event::StageStarted(label.to_owned()));
-    let output = Command::new(program)
-        .args(args)
-        .output()
-        .map_err(|e| PipelineError::new(format!("Could not start `{program}`: {e}")))?;
+    let output = Command::new(program).args(args).output().map_err(|e| {
+        PipelineError::guided(
+            format!("Could not start `{program}`: {e}"),
+            format!("Confirm `{program}` is installed and executable, then retry."),
+        )
+    })?;
     if output.status.success() {
         reporter.report(Event::StageCompleted(label.to_owned()));
         Ok(())
@@ -555,7 +592,12 @@ fn run_demucs_with_label(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|e| PipelineError::new(format!("Could not start Demucs terminal: {e}")))?;
+        .map_err(|e| {
+            PipelineError::guided(
+                format!("Could not start Demucs: {e}"),
+                "Confirm Demucs is installed and executable, then retry.",
+            )
+        })?;
     #[cfg(not(target_os = "macos"))]
     let mut child = Command::new("demucs")
         .args(args)
@@ -563,7 +605,12 @@ fn run_demucs_with_label(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
-        .map_err(|e| PipelineError::new(format!("Could not start `demucs`: {e}")))?;
+        .map_err(|e| {
+            PipelineError::guided(
+                format!("Could not start Demucs: {e}"),
+                "Confirm Demucs is installed and executable, then retry.",
+            )
+        })?;
 
     #[cfg(target_os = "macos")]
     let progress_output = child.stdout.take().expect("piped stdout");
@@ -819,7 +866,12 @@ fn validate_audio(input: &Path) -> Result<()> {
             input.as_os_str(),
         ])
         .output()
-        .map_err(|e| PipelineError::new(format!("Could not inspect the audio file: {e}")))?;
+        .map_err(|e| {
+            PipelineError::guided(
+                format!("Could not inspect the audio file: {e}"),
+                "Confirm FFprobe is installed and executable, then retry.",
+            )
+        })?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         return Err(PipelineError::guided(

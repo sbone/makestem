@@ -162,6 +162,39 @@ MAKESTEM_SMOKE_TRACK="/path/to/short-test.flac" \
 The real-audio tier is opt-in because it is slow and writes an acapella to the
 track's neighboring `output/` directory. Use a short, disposable test file.
 
+### Direct-download release
+
+MakeStem is distributed outside the Mac App Store as a standard drag-to-install
+DMG. A release requires one locally installed **Developer ID Application**
+certificate and a notarization profile stored in the macOS Keychain:
+
+```sh
+xcrun notarytool store-credentials "MakeStem Notary" \
+  --apple-id "YOUR_APPLE_ID" \
+  --team-id "YOUR_TEAM_ID"
+```
+
+The command prompts for an app-specific password and stores it in Keychain; no
+credentials belong in this repository. Create a local signed DMG without any
+upload first:
+
+```sh
+./scripts/release-macos.sh
+```
+
+Once that succeeds, create the distributable release and send only the finished
+DMG to Apple's notarization service:
+
+```sh
+./scripts/release-macos.sh --notarize
+```
+
+The pipeline runs all checks, signs the app and bundled tools with hardened
+runtime and secure timestamps, creates `dist/MakeStem-VERSION.dmg`, notarizes
+and staples it, verifies Gatekeeper acceptance, and writes a SHA-256 checksum.
+Use `MAKESTEM_NOTARY_PROFILE` only if the Keychain profile has a different name.
+The script never reads or prints the notarization password.
+
 The Mac build bundles compatible Demucs, FFmpeg, and FFprobe executables. A
 release downloads only the audio-separation model on first use, verifies its
 integrity, and then processes tracks locally.

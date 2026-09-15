@@ -270,13 +270,24 @@ enum Engine {
         let errors = Pipe()
         process.standardOutput = output
         process.standardError = errors
-        try process.run()
+        do {
+            try process.run()
+        } catch {
+            throw AppError("Could not start MakeStem’s audio engine: \(error.localizedDescription)\n\nQuit and reopen MakeStem, then try again.")
+        }
         process.waitUntilExit()
         guard process.terminationStatus == 0 else {
             let message = String(data: errors.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)
             throw AppError(message?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "Could not inspect this track.")
         }
-        return try JSONDecoder().decode(Inspection.self, from: output.fileHandleForReading.readDataToEndOfFile())
+        do {
+            return try JSONDecoder().decode(
+                Inspection.self,
+                from: output.fileHandleForReading.readDataToEndOfFile()
+            )
+        } catch {
+            throw AppError("MakeStem could not understand the audio inspection result.\n\nQuit and reopen MakeStem, then try the track again.")
+        }
     }
 
     static func processEvents(
@@ -325,14 +336,23 @@ enum Engine {
         let logURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("makestem-\(UUID().uuidString).log")
         FileManager.default.createFile(atPath: logURL.path, contents: nil)
-        let log = try FileHandle(forWritingTo: logURL)
+        let log: FileHandle
+        do {
+            log = try FileHandle(forWritingTo: logURL)
+        } catch {
+            throw AppError("Could not create a temporary processing log: \(error.localizedDescription)\n\nCheck available disk space and try again.")
+        }
         defer {
             try? log.close()
             try? FileManager.default.removeItem(at: logURL)
         }
         process.standardOutput = output
         process.standardError = log
-        try process.run()
+        do {
+            try process.run()
+        } catch {
+            throw AppError("Could not start MakeStem’s audio engine: \(error.localizedDescription)\n\nQuit and reopen MakeStem, then try again.")
+        }
         controller.attach(process)
         var buffer = Data()
         var reportedError: String?
@@ -343,8 +363,8 @@ enum Engine {
             while let newline = buffer.firstIndex(of: 0x0A) {
                 let line = buffer[..<newline]
                 buffer.removeSubrange(...newline)
-                guard !line.isEmpty,
-                      let event = try? JSONDecoder().decode(EngineEvent.self, from: line) else { continue }
+                guard !line.isEmpty else { continue }
+                let event = try decodeEvent(Data(line))
                 if event.type == "error" {
                     reportedError = [event.message, event.guidance]
                         .compactMap { $0 }
@@ -360,6 +380,14 @@ enum Engine {
             try log.synchronize()
             let message = try? String(contentsOf: logURL, encoding: .utf8)
             throw AppError(reportedError ?? message?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "Stem creation failed.")
+        }
+    }
+
+    static func decodeEvent(_ data: Data) throws -> EngineEvent {
+        do {
+            return try JSONDecoder().decode(EngineEvent.self, from: data)
+        } catch {
+            throw AppError("MakeStem received an unreadable progress update.\n\nQuit and reopen MakeStem, then try again.")
         }
     }
 

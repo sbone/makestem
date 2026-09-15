@@ -23,4 +23,22 @@ final class MakeStemTests: XCTestCase {
         let status = ProcessingStatus(stage: "Separating")
         XCTAssertNil(status.estimatedRemaining(at: Date().addingTimeInterval(30)))
     }
+
+    func testMalformedEngineEventReturnsActionableError() {
+        XCTAssertThrowsError(try Engine.decodeEvent(Data("not json".utf8))) { error in
+            let message = error.localizedDescription
+            XCTAssertTrue(message.contains("unreadable progress update"))
+            XCTAssertTrue(message.contains("Quit and reopen MakeStem"))
+        }
+    }
+
+    func testEngineEventDecodesValidProgress() throws {
+        let event = try Engine.decodeEvent(
+            Data(#"{"type":"stage_progress","detail":"Analyzing audio","percent":42}"#.utf8)
+        )
+
+        XCTAssertEqual(event.type, "stage_progress")
+        XCTAssertEqual(event.detail, "Analyzing audio")
+        XCTAssertEqual(event.percent, 42)
+    }
 }

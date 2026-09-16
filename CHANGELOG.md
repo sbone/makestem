@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.3 — 2026-09-16
+
+- Keep the track drop area visible during first-time model setup, with track
+  selection disabled until the model is ready.
+- Smooth transitions between setup, inspection, processing, and completion.
+- Add real-audio regression coverage for every supported format, metadata,
+  embedded artwork, channel layouts, VBR output, and stem mixing.
+
 ## 0.1.1 — 2026-09-16
 
 - Added MP3 input with output quality matched to the source, including VBR.

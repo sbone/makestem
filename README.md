@@ -19,9 +19,14 @@ Serato.
 
 ## Mac app
 
-Makestem supports Apple Silicon Macs running macOS 14 or newer. A notarized,
-drag-to-install download is being prepared; until it is published, developers
-can [build the app from source](#build-the-mac-app).
+Makestem supports Apple Silicon Macs running macOS 14 or newer.
+
+1. Download the DMG from the [latest release](../../releases/latest).
+2. Open it and drag **Makestem** into **Applications**.
+3. Open Makestem from Applications and download the audio model when prompted.
+
+The app is signed and notarized by Apple. No Homebrew, Terminal, or developer
+tools are required.
 
 ### Create stems
 
@@ -114,9 +119,9 @@ Run every automated check:
 ./scripts/test-all.sh
 ```
 
-This checks Rust formatting, tests, and linting; runs the Swift tests; builds
-the complete app; and validates its bundled tools, licenses, metadata,
-deployment target, architecture, and signatures.
+This checks Rust formatting, tests, and linting; runs the Swift tests and a
+real-audio format matrix; builds the complete app; and validates its bundled
+tools, licenses, metadata, deployment target, architecture, and signatures.
 
 To include a slow, real Demucs separation using a short disposable track:
 

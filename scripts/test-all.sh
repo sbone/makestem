@@ -32,6 +32,9 @@ echo "==> Building Mac app"
 echo "==> Validating packaged Mac app"
 ./scripts/validate-mac-app.sh
 
+echo "==> Audio-format regression matrix"
+./scripts/test-audio-formats.sh
+
 if [[ "${MAKESTEM_REAL_AUDIO_SMOKE:-0}" == "1" ]]; then
   [[ -n "${MAKESTEM_SMOKE_TRACK:-}" ]] || {
     echo "MAKESTEM_SMOKE_TRACK is required when MAKESTEM_REAL_AUDIO_SMOKE=1." >&2

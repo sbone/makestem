@@ -582,6 +582,7 @@ struct ContentView: View {
                         .font(.callout).foregroundStyle(.secondary)
                 }
                 Spacer()
+                modelInfoButton
                 Button("Download Model") { model.downloadModel() }.buttonStyle(.borderedProminent)
             }
             .padding(16)
@@ -605,7 +606,10 @@ struct ContentView: View {
                         } else {
                             ProgressView()
                         }
-                        Button("Cancel") { model.cancelModelDownload() }
+                        HStack {
+                            Button("Cancel") { model.cancelModelDownload() }
+                            modelInfoButton
+                        }
                     }
                 }
                 .padding(16)
@@ -621,6 +625,7 @@ struct ContentView: View {
                     Text(message).font(.callout).foregroundStyle(.secondary).lineLimit(2)
                 }
                 Spacer()
+                modelInfoButton
                 Button("Try Again") { model.downloadModel() }
             }
             .padding(16)
@@ -635,7 +640,7 @@ struct ContentView: View {
                 Text("Find the blend live. Finish it with MakeStem.").foregroundStyle(.secondary)
             }
             Spacer(minLength: 16)
-            headerModelStatus
+            if model.canSelectTrack { headerModelStatus }
         }
         .frame(maxWidth: .infinity)
     }
@@ -643,47 +648,28 @@ struct ContentView: View {
     @ViewBuilder
     private var headerModelStatus: some View {
         HStack(spacing: 9) {
-            switch model.modelState {
-            case .ready:
-                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Audio model ready").font(.callout.weight(.semibold))
-                    Text("Processing stays local").font(.caption).foregroundStyle(.secondary)
-                }
-            case .missing:
-                Image(systemName: "arrow.down.circle").foregroundStyle(.secondary)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Audio model needed").font(.callout.weight(.semibold))
-                    Text("One-time download").font(.caption).foregroundStyle(.secondary)
-                }
-            case .downloading(let status):
-                ProgressView().controlSize(.small)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Downloading model").font(.callout.weight(.semibold))
-                    Text(status.percent.map { "\($0)% complete" } ?? "Preparing…")
-                        .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-                }
-            case .failed:
-                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Model unavailable").font(.callout.weight(.semibold))
-                    Text("Download needs attention").font(.caption).foregroundStyle(.secondary)
-                }
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Audio model ready").font(.callout.weight(.semibold))
+                Text("Processing stays local").font(.caption).foregroundStyle(.secondary)
             }
-            Button("About the audio model", systemImage: "info.circle") {
-                showsModelInfo.toggle()
-            }
-            .labelStyle(.iconOnly)
-            .buttonStyle(.plain)
-            .foregroundStyle(.secondary)
-            .help("About the audio model")
-            .popover(isPresented: $showsModelInfo, arrowEdge: .bottom) {
-                modelInfo
-            }
+            modelInfoButton.labelStyle(.iconOnly)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 9)
         .background(.quaternary.opacity(0.55), in: RoundedRectangle(cornerRadius: 11))
+    }
+
+    private var modelInfoButton: some View {
+        Button("About the audio model", systemImage: "info.circle") {
+            showsModelInfo.toggle()
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.secondary)
+        .help("About the audio model")
+        .popover(isPresented: $showsModelInfo, arrowEdge: .bottom) {
+            modelInfo
+        }
     }
 
     private var modelInfo: some View {

@@ -528,6 +528,7 @@ struct AppError: LocalizedError {
 }
 
 struct ContentView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var model = AppModel()
     @State private var showsModelInfo = false
     @State private var replacementRequest: ReplacementRequest?
@@ -536,19 +537,28 @@ struct ContentView: View {
         VStack(spacing: 24) {
             header
             modelAction
-            switch model.state {
-            case .empty: dropZone
-            case .inspecting(let name): activity(title: "Inspecting \(name)", detail: "Checking the audio source…")
-            case .inspected(let inspection): inspectionCard(inspection)
-            case .processing(let inspection, let status): processing(inspection, status)
-            case .complete(let inspection): completion(inspection)
-            case .failed(let message): failure(message)
+                .id(modelPhase)
+                .transition(.opacity)
+            Group {
+                switch model.state {
+                case .empty: dropZone
+                case .inspecting(let name): activity(title: "Inspecting \(name)", detail: "Checking the audio source…")
+                case .inspected(let inspection): inspectionCard(inspection)
+                case .processing(let inspection, let status): processing(inspection, status)
+                case .complete(let inspection): completion(inspection)
+                case .failed(let message): failure(message)
+                }
             }
+            .id(screenPhase)
+            .transition(.opacity)
+            .frame(maxWidth: .infinity, minHeight: 260, alignment: .top)
             Spacer(minLength: 0)
         }
         .padding(32)
         .frame(minWidth: 620, idealWidth: 680, minHeight: 520, idealHeight: 600)
         .background(Color(nsColor: .windowBackgroundColor))
+        .animation(reduceMotion ? nil : .smooth(duration: 0.3), value: modelPhase)
+        .animation(reduceMotion ? nil : .smooth(duration: 0.3), value: screenPhase)
         .alert(
             "Replace existing files?",
             isPresented: Binding(
@@ -564,6 +574,26 @@ struct ContentView: View {
             }
         } message: { request in
             Text(replacementMessage(request.outputs))
+        }
+    }
+
+    private var modelPhase: Int {
+        switch model.modelState {
+        case .missing: 0
+        case .downloading: 1
+        case .ready: 2
+        case .failed: 3
+        }
+    }
+
+    private var screenPhase: Int {
+        switch model.state {
+        case .empty: 0
+        case .inspecting: 1
+        case .inspected: 2
+        case .processing: 3
+        case .complete: 4
+        case .failed: 5
         }
     }
 

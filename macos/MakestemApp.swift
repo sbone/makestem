@@ -535,17 +535,14 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 24) {
             header
-            if model.canSelectTrack {
-                switch model.state {
-                case .empty: dropZone
-                case .inspecting(let name): activity(title: "Inspecting \(name)", detail: "Checking the audio source…")
-                case .inspected(let inspection): inspectionCard(inspection)
-                case .processing(let inspection, let status): processing(inspection, status)
-                case .complete(let inspection): completion(inspection)
-                case .failed(let message): failure(message)
-                }
-            } else {
-                modelAction
+            modelAction
+            switch model.state {
+            case .empty: dropZone
+            case .inspecting(let name): activity(title: "Inspecting \(name)", detail: "Checking the audio source…")
+            case .inspected(let inspection): inspectionCard(inspection)
+            case .processing(let inspection, let status): processing(inspection, status)
+            case .complete(let inspection): completion(inspection)
+            case .failed(let message): failure(message)
             }
             Spacer(minLength: 0)
         }
@@ -712,12 +709,15 @@ struct ContentView: View {
             Text("FLAC, WAV, and AIFF recommended")
                 .font(.callout)
                 .foregroundStyle(.secondary)
-            Button("Choose Track…") { model.chooseFile() }.buttonStyle(.borderedProminent)
+            Button("Choose Track…") { model.chooseFile() }
+                .buttonStyle(.borderedProminent)
+                .disabled(!model.canSelectTrack)
         }
         .frame(maxWidth: .infinity, minHeight: 250)
         .background(.quaternary.opacity(model.isDropTarget ? 0.9 : 0.45), in: RoundedRectangle(cornerRadius: 18))
         .overlay(RoundedRectangle(cornerRadius: 18).stroke(model.isDropTarget ? Color.accentColor : .secondary.opacity(0.25), lineWidth: 2))
         .onDrop(of: [.fileURL], isTargeted: $model.isDropTarget) { providers in
+            guard model.canSelectTrack else { return false }
             guard let provider = providers.first else { return false }
             provider.loadDataRepresentation(forTypeIdentifier: UTType.fileURL.identifier) { data, error in
                 guard let data, let url = URL(dataRepresentation: data, relativeTo: nil) else {

@@ -12,6 +12,7 @@ enum OutputChoice: String, CaseIterable, Identifiable {
 
 struct Inspection: Codable, Sendable {
     let path: String
+    let artist: String?
     let title: String
     let format: String
     let codec: String
@@ -27,13 +28,18 @@ struct Inspection: Codable, Sendable {
     let message: String
 
     enum CodingKeys: String, CodingKey {
-        case path, title, format, codec, channels, lossless, readiness, message
+        case path, artist, title, format, codec, channels, lossless, readiness, message
         case durationSeconds = "duration_seconds"
         case sampleRate = "sample_rate"
         case bitDepth = "bit_depth"
         case sourceBitrateKbps = "source_bitrate_kbps"
         case sourceVbr = "source_vbr"
         case outputQuality = "output_quality"
+    }
+
+    var displayTitle: String {
+        guard let artist, !artist.isEmpty else { return title }
+        return "\(artist) — \(title)"
     }
 }
 
@@ -745,7 +751,7 @@ struct ContentView: View {
                 Image(systemName: item.readiness == "ready" ? "checkmark.circle.fill" : item.readiness == "warning" ? "exclamationmark.triangle.fill" : "xmark.octagon.fill")
                     .font(.title).foregroundStyle(statusColor(item.readiness))
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(item.title).font(.title3.weight(.semibold)).lineLimit(1)
+                    Text(item.displayTitle).font(.title3.weight(.semibold)).lineLimit(1)
                     Text(summary(item)).foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -790,7 +796,7 @@ struct ContentView: View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             VStack(spacing: 16) {
                 Image(systemName: "waveform").font(.system(size: 38)).foregroundStyle(.tint)
-                Text(item.title).font(.title3.weight(.semibold)).lineLimit(1)
+                Text(item.displayTitle).font(.title3.weight(.semibold)).lineLimit(1)
                 Text(status.stage).foregroundStyle(.secondary)
                 if let percent = status.percent {
                     ProgressView(value: Double(percent), total: 100)

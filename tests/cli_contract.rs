@@ -62,7 +62,7 @@ fn inspect_json_preserves_unicode_paths_and_reports_compressed_audio() {
     write_executable(
         &tools.join("ffprobe"),
         r#"#!/bin/sh
-printf '%s\n' '{"streams":[{"index":0,"codec_name":"mp3","codec_type":"audio","sample_rate":"44100","channels":2,"bit_rate":"256000"}],"format":{"format_name":"mp3","duration":"245.5","tags":{"TITLE":"  A\nTest\t‘Blend’\u001b[31m  "}},"packets":[{"stream_index":0,"size":"835"},{"stream_index":0,"size":"836"},{"stream_index":0,"size":"835"},{"stream_index":0,"size":"836"}]}'
+printf '%s\n' '{"streams":[{"index":0,"codec_name":"mp3","codec_type":"audio","sample_rate":"44100","channels":2,"bit_rate":"256000"}],"format":{"format_name":"mp3","duration":"245.5","tags":{"ARTIST":"  DJ\tExample  ","TITLE":"  A\nTest\t‘Blend’\u001b[31m  "}},"packets":[{"stream_index":0,"size":"835"},{"stream_index":0,"size":"836"},{"stream_index":0,"size":"835"},{"stream_index":0,"size":"836"}]}'
 "#,
     );
     let track = temporary.path().join("Beyoncé – [DJ's test] 🎧.mp3");
@@ -81,6 +81,7 @@ printf '%s\n' '{"streams":[{"index":0,"codec_name":"mp3","codec_type":"audio","s
     );
     let inspection: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(inspection["path"], track.to_string_lossy().as_ref());
+    assert_eq!(inspection["artist"], "DJ Example");
     assert_eq!(inspection["title"], "A Test ‘Blend’ [31m");
     assert_eq!(inspection["format"], "MP3");
     assert_eq!(inspection["readiness"], "warning");

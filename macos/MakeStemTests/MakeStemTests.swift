@@ -2,6 +2,24 @@ import XCTest
 @testable import MakeStem
 
 final class MakeStemTests: XCTestCase {
+    func testTrackDisplayTitleGracefullyHandlesMissingArtist() throws {
+        let base = #"{"path":"/Music/Track.flac","title":"Track","format":"FLAC","codec":"flac","duration_seconds":120,"sample_rate":44100,"channels":2,"bit_depth":24,"lossless":true,"source_bitrate_kbps":null,"source_vbr":null,"output_quality":"320 kbps MP3","readiness":"ready","message":"Ready"}"#
+        let withArtist = base.replacingOccurrences(
+            of: #""title":"Track""#,
+            with: #""artist":"The Artist","title":"Track""#
+        )
+
+        let decoder = JSONDecoder()
+        XCTAssertEqual(
+            try decoder.decode(Inspection.self, from: Data(withArtist.utf8)).displayTitle,
+            "The Artist — Track"
+        )
+        XCTAssertEqual(
+            try decoder.decode(Inspection.self, from: Data(base.utf8)).displayTitle,
+            "Track"
+        )
+    }
+
     @MainActor
     func testTracksAreUnavailableUntilModelIsReady() {
         let model = AppModel()

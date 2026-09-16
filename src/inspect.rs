@@ -4,6 +4,7 @@ use std::{ffi::OsStr, path::Path, process::Command};
 #[derive(Debug, Serialize)]
 pub struct AudioInspection {
     pub path: String,
+    pub artist: Option<String>,
     pub title: String,
     pub format: String,
     pub codec: String,
@@ -98,6 +99,8 @@ impl Mp3Encoding {
 
 #[derive(Deserialize)]
 struct ProbeTags {
+    #[serde(alias = "ARTIST")]
+    artist: Option<String>,
     #[serde(alias = "TITLE")]
     title: Option<String>,
 }
@@ -185,6 +188,11 @@ pub fn inspect_audio(path: &Path) -> Result<AudioInspection, String> {
             .or_else(|| path.file_stem().and_then(OsStr::to_str).map(str::to_owned))
             .unwrap_or_else(|| "Untitled".to_owned()),
     );
+    let artist = format
+        .as_ref()
+        .and_then(|format| format.tags.as_ref())
+        .and_then(|tags| tags.artist.as_deref())
+        .and_then(clean_optional_text);
     let bit_depth = stream
         .bits_per_raw_sample
         .as_deref()
@@ -201,6 +209,7 @@ pub fn inspect_audio(path: &Path) -> Result<AudioInspection, String> {
 
     Ok(AudioInspection {
         path: path.to_string_lossy().into_owned(),
+        artist,
         title,
         format: friendly_format(
             format
@@ -230,6 +239,10 @@ pub fn inspect_audio(path: &Path) -> Result<AudioInspection, String> {
 }
 
 fn clean_text(value: &str) -> String {
+    clean_optional_text(value).unwrap_or_else(|| "Untitled".to_owned())
+}
+
+fn clean_optional_text(value: &str) -> Option<String> {
     let cleaned = value
         .chars()
         .map(|character| {
@@ -243,11 +256,7 @@ fn clean_text(value: &str) -> String {
         .split_whitespace()
         .collect::<Vec<_>>()
         .join(" ");
-    if cleaned.is_empty() {
-        "Untitled".to_owned()
-    } else {
-        cleaned
-    }
+    (!cleaned.is_empty()).then_some(cleaned)
 }
 
 pub fn encoding_for_audio(path: &Path) -> Result<Mp3Encoding, String> {

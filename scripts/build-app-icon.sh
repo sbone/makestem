@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="${0:A:h:h}"
-source_icon="${1:-$repo_root/artwork/MakeStemIcon.png}"
+source_icon="${1:-$repo_root/artwork/MakestemIcon.png}"
 icon_set="$repo_root/macos/Assets.xcassets/AppIcon.appiconset"
 
 fail() {
@@ -31,4 +31,4 @@ for size in 16 32 128 256 512; do
   sips -z "$doubled" "$doubled" "$source_icon" --out "$icon_set/icon_${size}x${size}@2x.png" >/dev/null
 done
 
-echo "Generated MakeStem app icons from $source_icon"
+echo "Generated Makestem app icons from $source_icon"

@@ -2,7 +2,7 @@
 set -euo pipefail
 
 repo_root="${0:A:h:h}"
-project="$repo_root/macos/MakeStem.xcodeproj"
+project="$repo_root/macos/Makestem.xcodeproj"
 derived_data="$repo_root/build/xcode-derived"
 identity="${MAKESTEM_SIGNING_IDENTITY:--}"
 signing_flags=()
@@ -11,13 +11,13 @@ if [[ "$identity" != "-" ]]; then
 fi
 
 cd "$repo_root"
-if [[ -f "$repo_root/artwork/MakeStemIcon.png" ]]; then
+if [[ -f "$repo_root/artwork/MakestemIcon.png" ]]; then
   ./scripts/build-app-icon.sh
 fi
 xcodebuild \
   -quiet \
   -project "$project" \
-  -scheme MakeStem \
+  -scheme Makestem \
   -configuration Release \
   -destination 'platform=macOS' \
   -derivedDataPath "$derived_data" \
@@ -26,5 +26,5 @@ xcodebuild \
   build
 
 codesign --force --sign "$identity" --options runtime "${signing_flags[@]}" \
-  "$repo_root/build/MakeStem.app"
-echo "Built $repo_root/build/MakeStem.app"
+  "$repo_root/build/Makestem.app"
+echo "Built $repo_root/build/Makestem.app"

@@ -1,45 +1,45 @@
-# MakeStem
+# Makestem
 
-**Find the blend live. Finish it with MakeStem.**
+**Find the blend live. Finish it with Makestem.**
 
-MakeStem turns a full track into a high-quality acapella, instrumental, or
+Makestem turns a full track into a high-quality acapella, instrumental, or
 both—ready for recorded and shareable DJ blends.
 
-Drop in a FLAC, WAV, AIFF, or MP3. MakeStem checks the track, separates it on
+Drop in a FLAC, WAV, AIFF, or MP3. Makestem checks the track, separates it on
 your Mac, and saves DJ-ready MP3s beside the original. Your music is never
 uploaded.
 
 Serato Stems is invaluable for discovering blends live. When you find one
-worth recording and sharing, MakeStem takes the slower, higher-quality route.
+worth recording and sharing, Makestem takes the slower, higher-quality route.
 
-> Serato Stems helps you discover the blend. MakeStem helps you finish it.
+> Serato Stems helps you discover the blend. Makestem helps you finish it.
 
-MakeStem is an independent project and is not affiliated with or endorsed by
+Makestem is an independent project and is not affiliated with or endorsed by
 Serato.
 
 ## Mac app
 
-MakeStem supports Apple Silicon Macs running macOS 14 or newer. A notarized,
+Makestem supports Apple Silicon Macs running macOS 14 or newer. A notarized,
 drag-to-install download is being prepared; until it is published, developers
 can [build the app from source](#build-the-mac-app).
 
 ### Create stems
 
-1. Drop a track into MakeStem, or choose one from Finder.
+1. Drop a track into Makestem, or choose one from Finder.
 2. Choose **Both**, **Acapella**, or **Instrumental**.
 3. Select **Create Stems** and follow the progress.
 4. Reveal the finished files in Finder.
 
 FLAC, WAV, and AIFF sources are recommended. MP3, OGG, M4A, and AAC also work,
-but MakeStem warns when a compressed source might produce less-clean stems.
+but Makestem warns when a compressed source might produce less-clean stems.
 
-The first run downloads the 336 MB `htdemucs_ft` audio model. MakeStem verifies
+The first run downloads the 336 MB `htdemucs_ft` audio model. Makestem verifies
 the download and keeps it for later use. After that download, all processing
 happens locally.
 
 You can cancel a model download or separation and retry without leaving partial
 files behind. If a track is damaged, unsupported, missing audio, or cannot be
-read or saved, MakeStem gives concise guidance about what to try next.
+read or saved, Makestem gives concise guidance about what to try next.
 
 ## Output
 
@@ -51,7 +51,7 @@ output/
 └── Track Title (Instrumental).mp3
 ```
 
-MakeStem preserves source metadata and adds `(Acapella)` or `(Instrumental)` to
+Makestem preserves source metadata and adds `(Acapella)` or `(Instrumental)` to
 the track title. Lossless sources produce 320 kbps MP3s. Compressed sources are
 never needlessly up-encoded: output quality is capped at the detected source
 quality, including an appropriate profile for VBR MP3s.
@@ -95,16 +95,16 @@ cd demucs-rs
 cargo install --path demucs-cli --locked
 ```
 
-From the MakeStem checkout, build the pinned FFmpeg tools and app:
+From the Makestem checkout, build the pinned FFmpeg tools and app:
 
 ```sh
 ./scripts/build-ffmpeg-macos.sh
 ./scripts/build-mac-app.sh
-open build/MakeStem.app
+open build/Makestem.app
 ```
 
 The resulting development build is ad-hoc signed for local testing. The Xcode
-project is at `macos/MakeStem.xcodeproj`.
+project is at `macos/Makestem.xcodeproj`.
 
 ## Development
 
@@ -145,6 +145,6 @@ ticket:
 ./scripts/release-macos.sh --notarize
 ```
 
-The finished `dist/MakeStem-VERSION.dmg` includes MakeStem, Demucs, FFmpeg, and
+The finished `dist/Makestem-VERSION.dmg` includes Makestem, Demucs, FFmpeg, and
 FFprobe. Friends only download the audio model on first use; they do not need
 Homebrew, Rust, Xcode, or Terminal.

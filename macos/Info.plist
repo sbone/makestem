@@ -4,7 +4,7 @@
 <dict>
     <key>CFBundleDevelopmentRegion</key><string>en</string>
     <key>CFBundleDisplayName</key><string>Makestem</string>
-    <key>CFBundleExecutable</key><string>MakeStem</string>
+    <key>CFBundleExecutable</key><string>Makestem</string>
     <key>CFBundleIdentifier</key><string>com.stevenbone.makestem</string>
     <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
     <key>CFBundleName</key><string>Makestem</string>

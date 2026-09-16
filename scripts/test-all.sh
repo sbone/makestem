@@ -18,8 +18,8 @@ echo "==> Building pinned FFmpeg tools"
 
 echo "==> Swift unit tests"
 xcodebuild \
-  -project macos/MakeStem.xcodeproj \
-  -scheme MakeStem \
+  -project macos/Makestem.xcodeproj \
+  -scheme Makestem \
   -configuration Debug \
   -destination 'platform=macOS' \
   -derivedDataPath build/xcode-tests \
@@ -42,8 +42,8 @@ if [[ "${MAKESTEM_REAL_AUDIO_SMOKE:-0}" == "1" ]]; then
     exit 1
   }
   echo "==> Real audio smoke test"
-  PATH="$repo_root/build/MakeStem.app/Contents/Resources/bin:/usr/bin:/bin" \
-    "$repo_root/build/MakeStem.app/Contents/Helpers/makestem" \
+  PATH="$repo_root/build/Makestem.app/Contents/Resources/bin:/usr/bin:/bin" \
+    "$repo_root/build/Makestem.app/Contents/Helpers/makestem" \
     --acapella "$MAKESTEM_SMOKE_TRACK"
   smoke_output="${MAKESTEM_SMOKE_TRACK:h}/output/${MAKESTEM_SMOKE_TRACK:t:r} (Acapella).mp3"
   [[ -s "$smoke_output" ]] || {

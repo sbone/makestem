@@ -891,7 +891,7 @@ private struct ReplacementRequest: Identifiable {
 }
 
 @main
-struct MakeStemApp: App {
+struct MakestemApp: App {
     var body: some Scene {
         WindowGroup { ContentView() }
             .windowResizability(.contentSize)

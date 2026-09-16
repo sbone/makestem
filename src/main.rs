@@ -197,7 +197,7 @@ fn configure_process_group() {
     #[cfg(unix)]
     if std::env::var_os("MAKESTEM_PROCESS_GROUP").is_some() {
         // The Mac app uses a dedicated process group so cancellation reaches
-        // MakeStem and its active Demucs/FFmpeg descendants together.
+        // Makestem and its active Demucs/FFmpeg descendants together.
         unsafe {
             libc::setpgid(0, 0);
         }

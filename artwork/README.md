@@ -1,7 +1,7 @@
-# MakeStem app icon
+# Makestem app icon
 
 Save the final square, 1024 x 1024 (or larger) PNG here as
-`MakeStemIcon.png`, then run:
+`MakestemIcon.png`, then run:
 
 ```sh
 ./scripts/build-app-icon.sh

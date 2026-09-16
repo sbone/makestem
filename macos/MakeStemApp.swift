@@ -95,7 +95,13 @@ final class AppModel: ObservableObject {
         return false
     }
 
+    var canSelectTrack: Bool {
+        if case .ready = modelState { return true }
+        return false
+    }
+
     func chooseFile() {
+        guard canSelectTrack else { return }
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
@@ -104,6 +110,7 @@ final class AppModel: ObservableObject {
     }
 
     func inspect(_ url: URL) {
+        guard canSelectTrack else { return }
         let inspectionID = UUID()
         self.inspectionID = inspectionID
         state = .inspecting(url.lastPathComponent)
@@ -522,8 +529,7 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 24) {
             header
-            if showsModelAction { modelAction }
-            Group {
+            if model.canSelectTrack {
                 switch model.state {
                 case .empty: dropZone
                 case .inspecting(let name): activity(title: "Inspecting \(name)", detail: "Checking the audio source…")
@@ -532,6 +538,8 @@ struct ContentView: View {
                 case .complete(let inspection): completion(inspection)
                 case .failed(let message): failure(message)
                 }
+            } else {
+                modelAction
             }
             Spacer(minLength: 0)
         }
@@ -553,14 +561,6 @@ struct ContentView: View {
             }
         } message: { request in
             Text(replacementMessage(request.outputs))
-        }
-    }
-
-    private var showsModelAction: Bool {
-        if case .ready = model.modelState { return false }
-        switch model.state {
-        case .processing, .complete: return false
-        default: return true
         }
     }
 

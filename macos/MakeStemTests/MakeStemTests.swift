@@ -3,6 +3,23 @@ import XCTest
 
 final class MakeStemTests: XCTestCase {
     @MainActor
+    func testTracksAreUnavailableUntilModelIsReady() {
+        let model = AppModel()
+
+        model.modelState = .missing
+        XCTAssertFalse(model.canSelectTrack)
+
+        model.modelState = .downloading(ProcessingStatus(stage: "Downloading"))
+        XCTAssertFalse(model.canSelectTrack)
+
+        model.modelState = .failed("Network unavailable")
+        XCTAssertFalse(model.canSelectTrack)
+
+        model.modelState = .ready
+        XCTAssertTrue(model.canSelectTrack)
+    }
+
+    @MainActor
     func testDroppedItemFailureIncludesRecoveryAction() {
         let model = AppModel()
 

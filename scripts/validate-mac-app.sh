@@ -26,7 +26,7 @@ version_is_at_most() {
 }
 
 [[ -d "$app" ]] || fail "MakeStem.app was not found."
-[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$plist")" == "MakeStem" ]] || fail "Unexpected display name."
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$plist")" == "Makestem" ]] || fail "Unexpected display name."
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")" == "com.stevenbone.makestem" ]] || fail "Unexpected bundle identifier."
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$plist")" == "14.0" ]] || fail "Unexpected minimum macOS version."
 

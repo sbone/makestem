@@ -104,7 +104,7 @@ impl Pipeline {
         let input = fs::canonicalize(input).map_err(|e| {
             PipelineError::guided(
                 format!("Could not open ‘{}’: {e}", display_path(input)),
-                "Check that the file still exists and MakeStem has permission to read it.",
+                "Check that the file still exists and Makestem has permission to read it.",
             )
         })?;
         validate_audio(&input)?;
@@ -365,7 +365,7 @@ fn commit_outputs(outputs: &[PendingOutput], replace: bool) -> Result<()> {
             return Err(PipelineError::guided(
                 format!("Could not save the finished output: {error}"),
                 if output.destination.exists() {
-                    "An output appeared while MakeStem was working. It was preserved; confirm replacement and try again."
+                    "An output appeared while Makestem was working. It was preserved; confirm replacement and try again."
                 } else {
                     "Existing files were preserved. Check output-folder permissions and try again."
                 },
@@ -489,7 +489,7 @@ fn validate_model(path: &Path) -> Result<()> {
     if metadata.len() != MODEL_SIZE {
         return Err(PipelineError::guided(
             "The audio-separation model download is incomplete.",
-            "Try the model download again. MakeStem will replace the partial file.",
+            "Try the model download again. Makestem will replace the partial file.",
         ));
     }
     let file = fs::File::open(path).map_err(|e| {
@@ -510,7 +510,7 @@ fn validate_model(path: &Path) -> Result<()> {
     if digest != MODEL_SHA256 {
         return Err(PipelineError::guided(
             "The audio-separation model failed its integrity check.",
-            "Try the model download again. MakeStem will replace the damaged file.",
+            "Try the model download again. Makestem will replace the damaged file.",
         ));
     }
     Ok(())
@@ -931,7 +931,7 @@ fn diagnostic_guidance(stderr: &str) -> Option<String> {
     let message = if text.contains("no space left on device") {
         "The disk is full. Free some space on the source/output volume and retry."
     } else if text.contains("permission denied") || text.contains("operation not permitted") {
-        "MakeStem cannot read the source or write the result. Check file and folder permissions."
+        "Makestem cannot read the source or write the result. Check file and folder permissions."
     } else if text.contains("invalid data found")
         || text.contains("moov atom not found")
         || text.contains("end of file")

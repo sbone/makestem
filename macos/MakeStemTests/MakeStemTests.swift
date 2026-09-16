@@ -85,7 +85,7 @@ final class MakeStemTests: XCTestCase {
         XCTAssertThrowsError(try Engine.decodeEvent(Data("not json".utf8))) { error in
             let message = error.localizedDescription
             XCTAssertTrue(message.contains("unreadable progress update"))
-            XCTAssertTrue(message.contains("Quit and reopen MakeStem"))
+            XCTAssertTrue(message.contains("Quit and reopen Makestem"))
         }
     }
 

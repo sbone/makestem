@@ -167,7 +167,7 @@ fn main() {
         return;
     }
 
-    println!("MakeStem\n");
+    println!("Makestem\n");
     let mut reporter = TerminalReporter::new();
     let result = run_pipeline(track, &products, cli.replace, &mut reporter);
     reporter.clear();

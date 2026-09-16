@@ -298,7 +298,7 @@ enum Engine {
         do {
             try process.run()
         } catch {
-            throw AppError("Could not start MakeStem’s audio engine: \(error.localizedDescription)\n\nQuit and reopen MakeStem, then try again.")
+            throw AppError("Could not start Makestem’s audio engine: \(error.localizedDescription)\n\nQuit and reopen Makestem, then try again.")
         }
         process.waitUntilExit()
         guard process.terminationStatus == 0 else {
@@ -311,7 +311,7 @@ enum Engine {
                 from: output.fileHandleForReading.readDataToEndOfFile()
             )
         } catch {
-            throw AppError("MakeStem could not understand the audio inspection result.\n\nQuit and reopen MakeStem, then try the track again.")
+            throw AppError("Makestem could not understand the audio inspection result.\n\nQuit and reopen Makestem, then try the track again.")
         }
     }
 
@@ -379,7 +379,7 @@ enum Engine {
         do {
             try process.run()
         } catch {
-            throw AppError("Could not start MakeStem’s audio engine: \(error.localizedDescription)\n\nQuit and reopen MakeStem, then try again.")
+            throw AppError("Could not start Makestem’s audio engine: \(error.localizedDescription)\n\nQuit and reopen Makestem, then try again.")
         }
         controller.attach(process)
         var buffer = Data()
@@ -415,7 +415,7 @@ enum Engine {
         do {
             return try JSONDecoder().decode(EngineEvent.self, from: data)
         } catch {
-            throw AppError("MakeStem received an unreadable progress update.\n\nQuit and reopen MakeStem, then try again.")
+            throw AppError("Makestem received an unreadable progress update.\n\nQuit and reopen Makestem, then try again.")
         }
     }
 
@@ -578,7 +578,7 @@ struct ContentView: View {
                 Image(systemName: "arrow.down.circle.fill").font(.title).foregroundStyle(.tint)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("One-time model download").font(.headline)
-                    Text("MakeStem needs the fine-tuned htdemucs_ft audio model (about 336 MB). All processing stays local.")
+                    Text("Makestem needs the fine-tuned htdemucs_ft audio model (about 336 MB). All processing stays local.")
                         .font(.callout).foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -636,8 +636,8 @@ struct ContentView: View {
     private var header: some View {
         HStack(alignment: .center, spacing: 24) {
             VStack(alignment: .leading, spacing: 6) {
-                Text("MakeStem").font(.system(size: 30, weight: .bold, design: .rounded))
-                Text("Find the blend live. Finish it with MakeStem.").foregroundStyle(.secondary)
+                Text("Makestem").font(.system(size: 30, weight: .bold, design: .rounded))
+                Text("Find the blend live. Finish it with Makestem.").foregroundStyle(.secondary)
             }
             Spacer(minLength: 16)
             if model.canSelectTrack { headerModelStatus }
@@ -686,7 +686,7 @@ struct ContentView: View {
                 }
             }
 
-            Text("This model analyzes a track and separates vocals, drums, bass, and other sounds. MakeStem uses those parts to create its acapellas and instrumentals.")
+            Text("This model analyzes a track and separates vocals, drums, bass, and other sounds. Makestem uses those parts to create its acapellas and instrumentals.")
                 .fixedSize(horizontal: false, vertical: true)
 
             Text("The model is downloaded from a public repository hosted by Hugging Face, a platform for sharing machine-learning models. Once downloaded, it runs locally and your tracks are never uploaded.")
@@ -817,7 +817,7 @@ struct ContentView: View {
             Text("Your files are ready in the output folder.").foregroundStyle(.secondary)
             HStack {
                 Button("Process Another") { model.reset() }
-                Button("Quit MakeStem") { NSApplication.shared.terminate(nil) }
+                Button("Quit Makestem") { NSApplication.shared.terminate(nil) }
                 Button("Reveal in Finder") { model.reveal(item) }.buttonStyle(.borderedProminent)
             }
         }.frame(maxWidth: .infinity, minHeight: 260)
@@ -879,7 +879,7 @@ struct ContentView: View {
     private func replacementMessage(_ outputs: [URL]) -> String {
         let names = outputs.map(\.lastPathComponent)
         let list = names.count == 1 ? names[0] : names.joined(separator: "\n")
-        return "MakeStem already created:\n\n\(list)\n\nThe existing file\(names.count == 1 ? "" : "s") will be replaced only after the new stems finish successfully."
+        return "Makestem already created:\n\n\(list)\n\nThe existing file\(names.count == 1 ? "" : "s") will be replaced only after the new stems finish successfully."
     }
 }
 

@@ -67,11 +67,11 @@ struct ProcessingStatus: Sendable {
     var progressStartedAt: Date?
     var progressBaseline: Int?
 
-    init(stage: String) {
+    init(stage: String, percent: Int? = nil, startedAt: Date = .now) {
         self.stage = stage
-        self.percent = nil
-        self.startedAt = Date()
-        self.phaseStartedAt = Date()
+        self.percent = percent
+        self.startedAt = startedAt
+        self.phaseStartedAt = startedAt
     }
 
     func estimatedRemaining(at now: Date) -> TimeInterval? {
@@ -88,13 +88,24 @@ struct ProcessingStatus: Sendable {
 
 @MainActor
 final class AppModel: ObservableObject {
-    @Published var state: ScreenState = .empty
-    @Published var modelState: ModelState = Engine.modelIsReady ? .ready : .missing
+    @Published var state: ScreenState
+    @Published var modelState: ModelState
     @Published var outputChoice: OutputChoice = .both
     @Published var isDropTarget = false
+    let isScreenshotMode: Bool
     private var currentOperation: EventOperation?
     private var currentOperationID: UUID?
     private var inspectionID: UUID?
+
+    init(
+        state: ScreenState = .empty,
+        modelState: ModelState? = nil,
+        isScreenshotMode: Bool = false
+    ) {
+        self.state = state
+        self.modelState = modelState ?? (Engine.modelIsReady ? .ready : .missing)
+        self.isScreenshotMode = isScreenshotMode
+    }
 
     var isDownloadingModel: Bool {
         if case .downloading = modelState { return true }
@@ -529,9 +540,13 @@ struct AppError: LocalizedError {
 
 struct ContentView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @StateObject private var model = AppModel()
+    @StateObject private var model: AppModel
     @State private var showsModelInfo = false
     @State private var replacementRequest: ReplacementRequest?
+
+    init(model: AppModel) {
+        _model = StateObject(wrappedValue: model)
+    }
 
     var body: some View {
         VStack(spacing: 24) {
@@ -557,8 +572,8 @@ struct ContentView: View {
         .padding(32)
         .frame(minWidth: 620, idealWidth: 680, minHeight: 520, idealHeight: 600)
         .background(Color(nsColor: .windowBackgroundColor))
-        .animation(reduceMotion ? nil : .smooth(duration: 0.3), value: modelPhase)
-        .animation(reduceMotion ? nil : .smooth(duration: 0.3), value: screenPhase)
+        .animation(reduceMotion || model.isScreenshotMode ? nil : .smooth(duration: 0.3), value: modelPhase)
+        .animation(reduceMotion || model.isScreenshotMode ? nil : .smooth(duration: 0.3), value: screenPhase)
         .alert(
             "Replace existing files?",
             isPresented: Binding(
@@ -920,10 +935,67 @@ private struct ReplacementRequest: Identifiable {
     let outputs: [URL]
 }
 
+#if DEBUG
+extension AppModel {
+    static func screenshotModel(arguments: [String]) -> AppModel? {
+        guard let option = arguments.firstIndex(of: "--screenshot-state"),
+              arguments.indices.contains(option + 1) else { return nil }
+
+        let inspection = Inspection(
+            path: "/Music/Midnight Drive.mp3",
+            artist: "Example Artist",
+            title: "Midnight Drive",
+            format: "MP3",
+            codec: "mp3",
+            durationSeconds: 252,
+            sampleRate: 44_100,
+            channels: 2,
+            bitDepth: nil,
+            lossless: false,
+            sourceBitrateKbps: 192,
+            sourceVbr: false,
+            outputQuality: "192 kbps MP3",
+            readiness: "warning",
+            message: "Compressed source. Makestem can process it, but a lossless source may produce cleaner stems."
+        )
+
+        let state: ScreenState
+        switch arguments[option + 1] {
+        case "ready":
+            state = .empty
+        case "loaded-compressed":
+            state = .inspected(inspection)
+        case "processing":
+            state = .processing(
+                inspection,
+                ProcessingStatus(
+                    stage: "Separating audio • Segment 3 of 8",
+                    percent: 42,
+                    startedAt: .distantFuture
+                )
+            )
+        default:
+            return nil
+        }
+        return AppModel(state: state, modelState: .ready, isScreenshotMode: true)
+    }
+}
+#endif
+
 @main
 struct MakestemApp: App {
+    private let model: AppModel
+
+    init() {
+        #if DEBUG
+        model = AppModel.screenshotModel(arguments: CommandLine.arguments) ?? AppModel()
+        #else
+        model = AppModel()
+        #endif
+    }
+
     var body: some Scene {
-        WindowGroup { ContentView() }
+        WindowGroup { ContentView(model: model) }
             .windowResizability(.contentSize)
     }
 }

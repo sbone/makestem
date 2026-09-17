@@ -2,6 +2,41 @@ import XCTest
 @testable import Makestem
 
 final class MakestemTests: XCTestCase {
+    @MainActor
+    func testScreenshotStatesAreDeterministicAndOptIn() {
+        XCTAssertNil(AppModel.screenshotModel(arguments: ["Makestem"]))
+        XCTAssertNil(
+            AppModel.screenshotModel(
+                arguments: ["Makestem", "--screenshot-state", "unknown"]
+            )
+        )
+
+        let ready = AppModel.screenshotModel(
+            arguments: ["Makestem", "--screenshot-state", "ready"]
+        )
+        XCTAssertTrue(ready?.isScreenshotMode == true)
+        XCTAssertTrue(ready?.canSelectTrack == true)
+        guard case .empty = ready?.state else {
+            return XCTFail("Expected the ready screenshot state")
+        }
+
+        let loaded = AppModel.screenshotModel(
+            arguments: ["Makestem", "--screenshot-state", "loaded-compressed"]
+        )
+        guard case .inspected(let inspection) = loaded?.state else {
+            return XCTFail("Expected the loaded screenshot state")
+        }
+        XCTAssertEqual(inspection.displayTitle, "Example Artist — Midnight Drive")
+
+        let processing = AppModel.screenshotModel(
+            arguments: ["Makestem", "--screenshot-state", "processing"]
+        )
+        guard case .processing(_, let status) = processing?.state else {
+            return XCTFail("Expected the processing screenshot state")
+        }
+        XCTAssertEqual(status.percent, 42)
+    }
+
     func testTrackDisplayTitleGracefullyHandlesMissingArtist() throws {
         let base = #"{"path":"/Music/Track.flac","title":"Track","format":"FLAC","codec":"flac","duration_seconds":120,"sample_rate":44100,"channels":2,"bit_depth":24,"lossless":true,"source_bitrate_kbps":null,"source_vbr":null,"output_quality":"320 kbps MP3","readiness":"ready","message":"Ready"}"#
         let withArtist = base.replacingOccurrences(

@@ -142,6 +142,17 @@ MAKESTEM_SMOKE_TRACK="/path/to/short-test.flac" \
 ./scripts/test-all.sh
 ```
 
+Regenerate the ready, loaded-track, and processing screenshots used for
+documentation and releases:
+
+```sh
+./scripts/capture-screenshots.sh
+```
+
+macOS must allow Screen & System Audio Recording for the terminal or editor
+running the script. Screenshot mode is available only in development builds;
+it uses fictional track details and never processes audio or writes stems.
+
 ## Create a direct-download release
 
 Releases use a locally installed **Developer ID Application** certificate and a

@@ -5,6 +5,7 @@ repo_root="${0:A:h:h}"
 project="$repo_root/macos/Makestem.xcodeproj"
 derived_data="$repo_root/build/xcode-derived"
 identity="${MAKESTEM_SIGNING_IDENTITY:--}"
+configuration="${MAKESTEM_BUILD_CONFIGURATION:-Release}"
 signing_flags=()
 if [[ "$identity" != "-" ]]; then
   signing_flags=(--timestamp)
@@ -18,7 +19,7 @@ xcodebuild \
   -quiet \
   -project "$project" \
   -scheme Makestem \
-  -configuration Release \
+  -configuration "$configuration" \
   -destination 'platform=macOS' \
   -derivedDataPath "$derived_data" \
   CONFIGURATION_BUILD_DIR="$repo_root/build" \

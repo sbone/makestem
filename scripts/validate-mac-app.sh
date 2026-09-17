@@ -49,7 +49,7 @@ done
 "$contents/Helpers/makestem" --help | grep -q 'Usage: makestem' || fail "The CLI helper did not start correctly."
 
 [[ -f "$contents/Resources/Third-Party Notices.md" ]] || fail "Third-party notices are missing."
-for license in FFmpeg-LGPL-2.1.txt LAME-LGPL-2.0.txt demucs-rs-Apache-2.0.txt Demucs-model-MIT.txt; do
+for license in FFmpeg-LGPL-2.1.txt LAME-LGPL-2.0.txt demucs-rs-Apache-2.0.txt; do
   [[ -f "$contents/Resources/Licenses/$license" ]] || fail "Missing license: $license"
 done
 

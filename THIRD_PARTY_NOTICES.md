@@ -10,10 +10,11 @@ Makestem includes the following open-source software:
 - **LAME 3.100** — Copyright its contributors; GNU Lesser General Public
   License 2.0. <https://lame.sourceforge.io/>
 
-The `htdemucs_ft` model weights are not included in the app. Makestem offers
-to download them from the `set-soft/audio_separation` repository on first use.
-The repository identifies these weights as MIT licensed.
+The `htdemucs_ft` model weights are not distributed with Makestem. On first
+use, Makestem offers to download them directly from the
+`set-soft/audio_separation` repository, which identifies the weights as MIT
+licensed.
 <https://huggingface.co/set-soft/audio_separation>
 
-Full license texts for bundled components are included in the app's
+Full license texts for software bundled with Makestem are included in the app's
 `Contents/Resources/Licenses` directory.

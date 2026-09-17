@@ -53,7 +53,7 @@ finish_build() {
   cp "$source_root/ffmpeg-$ffmpeg_version/COPYING.LGPLv2.1" "$build_root/licenses/FFmpeg-LGPL-2.1.txt"
   cp "$source_root/lame-$lame_version/COPYING" "$build_root/licenses/LAME-LGPL-2.0.txt"
   cp "$source_root/demucs-rs-Apache-2.0.txt" "$build_root/licenses/demucs-rs-Apache-2.0.txt"
-  cp "$repo_root/LICENSE" "$build_root/licenses/Demucs-model-MIT.txt"
+  rm -f "$build_root/licenses/Demucs-model-MIT.txt"
   echo "$deployment_target" > "$target_stamp"
   echo "Built self-contained FFmpeg tools in $bin_dir"
 }

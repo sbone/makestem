@@ -172,6 +172,19 @@ ticket:
 ./scripts/release-macos.sh --notarize
 ```
 
+Publish the current version as a GitHub Release and Sparkle update after its
+changelog, version, and committed code are ready:
+
+```sh
+gh auth login # first time only
+./scripts/publish-release.sh
+```
+
+This runs the tests, notarizes the DMG, signs the Sparkle update using the
+private key in your macOS Keychain, and uploads the DMG, checksum, and update
+feed. The repository must be clean and the matching `vVERSION` Git tag must
+be unused; push the release commit before running the command.
+
 The finished `dist/Makestem-VERSION.dmg` includes Makestem, Demucs, FFmpeg, and
 FFprobe. Friends only download the audio model on first use; they do not need
 Homebrew, Rust, Xcode, or Terminal.

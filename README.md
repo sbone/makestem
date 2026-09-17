@@ -21,6 +21,13 @@ worth recording and sharing, Makestem takes the slower, higher-quality route.
 Makestem is an independent project and is not affiliated with or endorsed by
 Serato.
 
+<p align="center">
+  <img src="screenshots/makestem-ready.png" width="49%"
+       alt="Makestem ready for a track">
+  <img src="screenshots/makestem-track-loaded.png" width="49%"
+       alt="Makestem showing a loaded track and output choices">
+</p>
+
 ## Mac app
 
 Makestem supports Apple Silicon Macs running macOS 14 or newer.

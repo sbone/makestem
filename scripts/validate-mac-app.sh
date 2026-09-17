@@ -29,6 +29,9 @@ version_is_at_most() {
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$plist")" == "Makestem" ]] || fail "Unexpected display name."
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")" == "com.stevenbone.makestem" ]] || fail "Unexpected bundle identifier."
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$plist")" == "14.0" ]] || fail "Unexpected minimum macOS version."
+[[ "$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$plist")" == "https://github.com/sbone/makestem/releases/latest/download/appcast.xml" ]] || fail "Unexpected Sparkle update feed."
+[[ -n "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$plist")" ]] || fail "Sparkle public key is missing."
+[[ -d "$contents/Frameworks/Sparkle.framework" ]] || fail "Sparkle framework is missing."
 
 for executable in "${executables[@]}"; do
   [[ -x "$executable" ]] || fail "Missing executable: $executable"

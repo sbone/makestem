@@ -16,5 +16,7 @@
     <key>LSMinimumSystemVersion</key><string>14.0</string>
     <key>NSHumanReadableCopyright</key><string>Copyright © 2026 Steven Bone</string>
     <key>NSHighResolutionCapable</key><true/>
+    <key>SUFeedURL</key><string>https://github.com/sbone/makestem/releases/latest/download/appcast.xml</string>
+    <key>SUPublicEDKey</key><string>ffcPWsAVj7STGRtoREPERmYP+/HhkDoRrCvBAg1YLtY=</string>
 </dict>
 </plist>

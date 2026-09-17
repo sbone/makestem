@@ -1,5 +1,6 @@
 import AppKit
 import Darwin
+import Sparkle
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -985,8 +986,14 @@ extension AppModel {
 @main
 struct MakestemApp: App {
     private let model: AppModel
+    private let updaterController: SPUStandardUpdaterController
 
     init() {
+        updaterController = SPUStandardUpdaterController(
+            startingUpdater: true,
+            updaterDelegate: nil,
+            userDriverDelegate: nil
+        )
         #if DEBUG
         model = AppModel.screenshotModel(arguments: CommandLine.arguments) ?? AppModel()
         #else
@@ -997,5 +1004,12 @@ struct MakestemApp: App {
     var body: some Scene {
         WindowGroup { ContentView(model: model) }
             .windowResizability(.contentSize)
+            .commands {
+                CommandGroup(after: .appInfo) {
+                    Button("Check for Updates…") {
+                        updaterController.checkForUpdates(nil)
+                    }
+                }
+            }
     }
 }

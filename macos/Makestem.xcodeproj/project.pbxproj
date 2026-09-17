@@ -10,6 +10,7 @@
 		A10000000000000000000002 /* THIRD_PARTY_NOTICES.md in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000003 /* THIRD_PARTY_NOTICES.md */; };
 		A10000000000000000000003 /* MakestemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* MakestemTests.swift */; };
 		A10000000000000000000004 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* Assets.xcassets */; };
+		A10000000000000000000005 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = AE0000000000000000000002 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -33,7 +34,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		A60000000000000000000001 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		A60000000000000000000001 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000005 /* Sparkle in Frameworks */); runOnlyForDeploymentPostprocessing = 0; };
 		A60000000000000000000002 /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXFrameworksBuildPhase section */
 
@@ -88,6 +89,7 @@
 			buildRules = ();
 			dependencies = ();
 			name = Makestem;
+			packageProductDependencies = (AE0000000000000000000002 /* Sparkle */);
 			productName = Makestem;
 			productReference = A20000000000000000000005 /* Makestem.app */;
 			productType = "com.apple.product-type.application";
@@ -127,6 +129,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (en, Base);
 			mainGroup = A70000000000000000000001;
+			packageReferences = (AE0000000000000000000001 /* XCRemoteSwiftPackageReference "Sparkle" */);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = A70000000000000000000004 /* Products */;
 			projectDirPath = "";
@@ -178,6 +181,25 @@
 		AA0000000000000000000002 /* Build configuration list for PBXNativeTarget "MakestemTests" */ = {isa = XCConfigurationList; buildConfigurations = (AD0000000000000000000003 /* Debug */, AD0000000000000000000004 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 		AA0000000000000000000003 /* Build configuration list for PBXProject "Makestem" */ = {isa = XCConfigurationList; buildConfigurations = (AD0000000000000000000005 /* Debug */, AD0000000000000000000006 /* Release */); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		AE0000000000000000000001 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.10.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		AE0000000000000000000002 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = AE0000000000000000000001 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = A40000000000000000000001 /* Project object */;
 }

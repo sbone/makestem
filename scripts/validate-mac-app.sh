@@ -32,6 +32,9 @@ version_is_at_most() {
 [[ "$(/usr/libexec/PlistBuddy -c 'Print :SUFeedURL' "$plist")" == "https://github.com/sbone/makestem/releases/latest/download/appcast.xml" ]] || fail "Unexpected Sparkle update feed."
 [[ -n "$(/usr/libexec/PlistBuddy -c 'Print :SUPublicEDKey' "$plist")" ]] || fail "Sparkle public key is missing."
 [[ -d "$contents/Frameworks/Sparkle.framework" ]] || fail "Sparkle framework is missing."
+otool -l "$contents/MacOS/Makestem" \
+  | awk '/cmd LC_RPATH/ { rpath = 1 } rpath && /path @executable_path\/\.\.\/Frameworks/ { found = 1 } END { exit !found }' \
+  || fail "The app cannot locate its bundled frameworks."
 
 for executable in "${executables[@]}"; do
   [[ -x "$executable" ]] || fail "Missing executable: $executable"

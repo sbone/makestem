@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.5 — 2026-09-17
+
+- Fix launching the Mac app by including the runtime path for its bundled
+  Sparkle framework.
+- Validate the framework path before creating future releases.
+
 ## 0.1.4 — 2026-09-17
 
 - Add secure in-app update checks powered by Sparkle.

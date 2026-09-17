@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.4 — 2026-09-17
+
+- Add secure in-app update checks powered by Sparkle.
+- Publish signed, notarized downloads and update metadata through GitHub
+  Releases.
+
 ## 0.1.3 — 2026-09-16
 
 - Keep the track drop area visible during first-time model setup, with track

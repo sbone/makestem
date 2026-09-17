@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="artwork/MakestemIcon.png" width="160" alt="Makestem app icon">
+</p>
+
 # Makestem
 
 **Find the blend live. Finish it with Makestem.**

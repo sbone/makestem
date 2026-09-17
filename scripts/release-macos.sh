@@ -94,9 +94,12 @@ codesign --verify --verbose=2 "$dmg"
 
 if (( notarize )); then
   echo "==> Submitting DMG to Apple notarization"
-  xcrun notarytool submit "$dmg" \
+  submission="$(xcrun notarytool submit "$dmg" \
     --keychain-profile "$notary_profile" \
-    --wait
+    --wait 2>&1)" || fail "Apple notarization could not be completed."
+  print -r -- "$submission"
+  [[ "$submission" == *"status: Accepted"* ]] \
+    || fail "Apple did not accept the DMG. Run 'xcrun notarytool history --keychain-profile \"$notary_profile\"' for details."
   echo "==> Stapling notarization ticket"
   xcrun stapler staple "$dmg"
   xcrun stapler validate "$dmg"

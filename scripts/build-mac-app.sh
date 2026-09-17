@@ -26,6 +26,20 @@ xcodebuild \
   CODE_SIGN_IDENTITY="$identity" \
   build
 
+app="$repo_root/build/Makestem.app"
+if [[ "$identity" != "-" ]]; then
+  sparkle="$app/Contents/Frameworks/Sparkle.framework/Versions/B"
+  for component in \
+    "$sparkle/XPCServices/Downloader.xpc" \
+    "$sparkle/XPCServices/Installer.xpc" \
+    "$sparkle/Updater.app" \
+    "$sparkle/Autoupdate" \
+    "$sparkle"; do
+    codesign --force --sign "$identity" --options runtime --timestamp \
+      --preserve-metadata=identifier,entitlements,requirements,flags "$component"
+  done
+fi
+
 codesign --force --sign "$identity" --options runtime "${signing_flags[@]}" \
-  "$repo_root/build/Makestem.app"
-echo "Built $repo_root/build/Makestem.app"
+  "$app"
+echo "Built $app"

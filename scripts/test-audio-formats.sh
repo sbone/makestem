@@ -125,6 +125,17 @@ mixed_result="$work/instrumental.json"
 inspect "$mixed" "$mixed_result"
 assert_equal "$(json_value "$mixed_result" source_vbr)" true 'Instrumental VBR encoding'
 
+echo "==> Sanitizing non-finite stem samples"
+nan_stem="$work/non-finite.wav"
+safe_output="$work/non-finite.mp3"
+"$ffmpeg" -hide_banner -loglevel error -y \
+  -i "$fixtures/stem-f32.wav" -af 'aeval=0/0:c=same' -c:a pcm_f32le "$nan_stem"
+"$ffmpeg" -hide_banner -loglevel error -y \
+  -i "$nan_stem" \
+  -af 'aeval=if(isnan(val(ch))+isinf(val(ch))\,0\,val(ch)):c=same' \
+  -c:a libmp3lame -b:a 320k "$safe_output"
+assert_equal "$("$ffprobe" -v error -select_streams a:0 -show_entries stream=codec_name -of default=nw=1:nk=1 "$safe_output")" mp3 'Non-finite sample sanitization'
+
 echo "==> Rejecting malformed and non-audio files"
 if PATH="$tools:/usr/bin:/bin" "$cli" --inspect-json "$fixtures/damaged.m4a" > /dev/null 2> "$work/damaged.txt"; then
   echo "Damaged M4A was unexpectedly accepted." >&2

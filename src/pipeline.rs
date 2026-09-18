@@ -13,6 +13,7 @@ use std::{
 };
 
 const MODEL: &str = "htdemucs_ft";
+const SANITIZE_AUDIO_FILTER: &str = r"aeval=if(isnan(val(ch))+isinf(val(ch))\,0\,val(ch)):c=same";
 const MODEL_FILENAME: &str = "htdemucs_ft.safetensors";
 const MODEL_SIZE: u64 = 336_125_008;
 const MODEL_SHA256: &str = "255c2650d26537ce4887c9c4cf08c6d4896fad2fecc0b78dc5b875b117bcc575";
@@ -352,7 +353,7 @@ fn instrumental_mix_args(
         "-i".into(),
         source.as_os_str().to_owned(),
         "-filter_complex".into(),
-        "amix=inputs=3:duration=longest:normalize=0[mixed]".into(),
+        format!("amix=inputs=3:duration=longest:normalize=0,{SANITIZE_AUDIO_FILTER}[mixed]").into(),
         "-map".into(),
         "[mixed]".into(),
         "-map_metadata".into(),
@@ -982,6 +983,8 @@ fn diagnostic_guidance(stderr: &str) -> Option<String> {
         "The source contains embedded artwork that could not be copied. Remove the artwork or re-export the track, then retry."
     } else if text.contains("unknown encoder") || text.contains("encoder 'libmp3lame'") {
         "This FFmpeg build lacks MP3 encoding support. Install a full FFmpeg build with libmp3lame."
+    } else if text.contains("psymodel.c") && text.contains("calc_energy") {
+        "The separated audio contained an invalid sample. Update Makestem and retry; temporary files were cleaned up."
     } else if text.contains("unsupported") || text.contains("unknown format") {
         "The audio format or codec is not supported by the installed tool. Re-export it as FLAC or WAV."
     } else if text.contains("model") && (text.contains("download") || text.contains("not found")) {
@@ -1053,6 +1056,8 @@ fn ffmpeg_metadata_args(
         source.as_os_str().to_owned(),
         "-map".into(),
         "0:a:0".into(),
+        "-af".into(),
+        SANITIZE_AUDIO_FILTER.into(),
         "-map_metadata".into(),
         "1".into(),
         "-metadata".into(),
@@ -1217,6 +1222,11 @@ mod tests {
                 .contains("damaged")
         );
         assert!(diagnostic_guidance("unclassified failure").is_none());
+        assert!(
+            diagnostic_guidance("Assertion failed: calc_energy, file psymodel.c")
+                .unwrap()
+                .contains("invalid sample")
+        );
     }
 
     #[test]
@@ -1241,7 +1251,11 @@ mod tests {
             args.windows(2)
                 .any(|pair| pair == ["-metadata", "title=Track (Instrumental)"])
         );
-        assert!(args.iter().any(|arg| arg.ends_with("normalize=0[mixed]")));
+        assert!(
+            args.iter().any(|arg| {
+                arg.ends_with(&format!("normalize=0,{SANITIZE_AUDIO_FILTER}[mixed]"))
+            })
+        );
         assert!(args.windows(2).any(|pair| pair == ["-b:a", "192k"]));
     }
 
@@ -1263,6 +1277,10 @@ mod tests {
 
         assert!(args.windows(2).any(|pair| pair == ["-q:a", "2"]));
         assert!(args.windows(2).any(|pair| pair == ["-map", "0:a:0"]));
+        assert!(
+            args.windows(2)
+                .any(|pair| pair == ["-af", SANITIZE_AUDIO_FILTER])
+        );
         assert!(args.windows(2).any(|pair| pair == ["-map_metadata", "1"]));
         assert!(
             args.windows(2)

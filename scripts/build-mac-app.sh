@@ -7,8 +7,11 @@ derived_data="$repo_root/build/xcode-derived"
 identity="${MAKESTEM_SIGNING_IDENTITY:--}"
 configuration="${MAKESTEM_BUILD_CONFIGURATION:-Release}"
 signing_flags=()
+app_signing_flags=()
 if [[ "$identity" != "-" ]]; then
   signing_flags=(--options runtime --timestamp)
+else
+  app_signing_flags=(--deep)
 fi
 
 cd "$repo_root"
@@ -40,6 +43,6 @@ for component in \
     --preserve-metadata=identifier,entitlements,requirements,flags "$component"
 done
 
-codesign --force --sign "$identity" "${signing_flags[@]}" \
+codesign --force --sign "$identity" "${signing_flags[@]}" "${app_signing_flags[@]}" \
   "$app"
 echo "Built $app"

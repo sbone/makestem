@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.1.6 — 2026-09-18
+
+- Preserve embedded Serato tags and confirm their presence before, during, and
+  after processing.
+- Show model-download and processing progress on the Dock icon and app
+  switcher.
+- Prevent rare MP3 encoding failures caused by invalid separated-audio
+  samples.
+- Harden Sparkle signing and automatically verify that packaged apps launch.
+
 ## 0.1.5 — 2026-09-17
 
 - Fix launching the Mac app by including the runtime path for its bundled

@@ -37,7 +37,8 @@ Makestem supports Apple Silicon Macs running macOS 14 or newer.
 3. Open Makestem from Applications and download the audio model when prompted.
 
 The app is signed and notarized by Apple. No Homebrew, Terminal, or developer
-tools are required.
+tools are required. Makestem checks for updates automatically; you can also use
+**Check for Updates…** from the app menu.
 
 ### Create stems
 

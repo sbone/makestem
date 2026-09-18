@@ -1,6 +1,6 @@
 [package]
 name = "makestem"
-version = "0.1.3"
+version = "0.1.6"
 edition = "2024"
 description = "Create DJ-ready acapellas and instrumentals with Demucs and FFmpeg"
 license = "MIT"

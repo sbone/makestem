@@ -25,6 +25,7 @@ struct Inspection: Codable, Sendable {
     let sourceBitrateKbps: Int?
     let sourceVbr: Bool?
     let outputQuality: String
+    let seratoMetadata: [String]
     let readiness: String
     let message: String
 
@@ -36,11 +37,17 @@ struct Inspection: Codable, Sendable {
         case sourceBitrateKbps = "source_bitrate_kbps"
         case sourceVbr = "source_vbr"
         case outputQuality = "output_quality"
+        case seratoMetadata = "serato_metadata"
     }
 
     var displayTitle: String {
         guard let artist, !artist.isEmpty else { return title }
         return "\(artist) — \(title)"
+    }
+
+    var seratoNotice: String? {
+        guard !seratoMetadata.isEmpty else { return nil }
+        return "Serato tags"
     }
 }
 
@@ -93,6 +100,7 @@ final class AppModel: ObservableObject {
     @Published var modelState: ModelState
     @Published var outputChoice: OutputChoice = .both
     @Published var isDropTarget = false
+    @Published private(set) var metadataNotice: String?
     let isScreenshotMode: Bool
     private var currentOperation: EventOperation?
     private var currentOperationID: UUID?
@@ -152,6 +160,7 @@ final class AppModel: ObservableObject {
     }
 
     func process(_ inspection: Inspection, choice: OutputChoice, replace: Bool) {
+        metadataNotice = inspection.seratoNotice
         state = .processing(inspection, ProcessingStatus(stage: "Checking tools and source audio"))
         let operation = Engine.processEvents(
             URL(fileURLWithPath: inspection.path),
@@ -228,6 +237,10 @@ final class AppModel: ObservableObject {
     }
 
     private func apply(_ event: EngineEvent, to inspection: Inspection) {
+        if event.type == "metadata_detected" {
+            metadataNotice = event.detail
+            return
+        }
         guard case .processing(_, var status) = state else { return }
         update(&status, with: event)
         state = .processing(inspection, status)
@@ -258,7 +271,10 @@ final class AppModel: ObservableObject {
         }
     }
 
-    func reset() { state = .empty }
+    func reset() {
+        metadataNotice = nil
+        state = .empty
+    }
 
     func reveal(_ inspection: Inspection) {
         let source = URL(fileURLWithPath: inspection.path)
@@ -796,6 +812,11 @@ struct ContentView: View {
             Label("Output: \(item.outputQuality)", systemImage: "waveform.badge.checkmark")
                 .font(.callout.weight(.medium))
                 .foregroundStyle(.secondary)
+            if let notice = item.seratoNotice {
+                Label("\(notice) detected and will be preserved on output tracks", systemImage: "checkmark.circle.fill")
+                    .font(.callout)
+                    .foregroundStyle(.green)
+            }
             if item.readiness != "blocked" {
                 Picker("Create", selection: $model.outputChoice) {
                     ForEach(OutputChoice.allCases) { Text($0.rawValue).tag($0) }
@@ -834,6 +855,11 @@ struct ContentView: View {
                 Image(systemName: "waveform").font(.system(size: 38)).foregroundStyle(.tint)
                 Text(item.displayTitle).font(.title3.weight(.semibold)).lineLimit(1)
                 Text(status.stage).foregroundStyle(.secondary)
+                if let notice = model.metadataNotice {
+                    Label("\(notice) detected and will be preserved on output tracks", systemImage: "checkmark.circle.fill")
+                        .font(.callout)
+                        .foregroundStyle(.green)
+                }
                 if let percent = status.percent {
                     ProgressView(value: Double(percent), total: 100)
                         .progressViewStyle(.linear)
@@ -865,6 +891,11 @@ struct ContentView: View {
             Image(systemName: "checkmark.circle.fill").font(.system(size: 48)).foregroundStyle(.green)
             Text("Stems created").font(.title2.weight(.semibold))
             Text("Your files are ready in the output folder.").foregroundStyle(.secondary)
+            if let notice = model.metadataNotice {
+                Label("\(notice) preserved on output tracks", systemImage: "checkmark.circle.fill")
+                    .font(.callout)
+                    .foregroundStyle(.green)
+            }
             HStack {
                 Button("Process Another") { model.reset() }
                 Button("Quit Makestem") { NSApplication.shared.terminate(nil) }
@@ -960,6 +991,7 @@ extension AppModel {
             sourceBitrateKbps: 192,
             sourceVbr: false,
             outputQuality: "192 kbps MP3",
+            seratoMetadata: ["BeatGrid", "Markers2"],
             readiness: "warning",
             message: "Compressed source. Makestem can process it, but a lossless source may produce cleaner stems."
         )

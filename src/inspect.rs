@@ -1,3 +1,4 @@
+use id3::{Content, ErrorKind as Id3ErrorKind, Frame, Tag};
 use serde::{Deserialize, Serialize};
 use std::{ffi::OsStr, path::Path, process::Command};
 
@@ -16,6 +17,7 @@ pub struct AudioInspection {
     pub source_bitrate_kbps: Option<u32>,
     pub source_vbr: Option<bool>,
     pub output_quality: String,
+    pub serato_metadata: Vec<String>,
     pub readiness: Readiness,
     pub message: String,
 }
@@ -206,6 +208,10 @@ pub fn inspect_audio(path: &Path) -> Result<AudioInspection, String> {
         .and_then(parse_bitrate_kbps);
     let source_vbr = (codec == "mp3").then(|| packet_sizes_vary(&probe.packets, stream.index));
     let output_encoding = choose_output_encoding(lossless, &codec, source_bitrate_kbps, source_vbr);
+    let serato_metadata =
+        serato_frame_names(&read_serato_frames(path).map_err(|error| {
+            format!("Could not safely read this MP3’s Serato metadata: {error}")
+        })?);
 
     Ok(AudioInspection {
         path: path.to_string_lossy().into_owned(),
@@ -233,9 +239,51 @@ pub fn inspect_audio(path: &Path) -> Result<AudioInspection, String> {
         source_bitrate_kbps,
         source_vbr,
         output_quality: output_encoding.label(),
+        serato_metadata,
         readiness,
         message,
     })
+}
+
+pub(crate) fn read_serato_frames(source: &Path) -> Result<Vec<Frame>, id3::Error> {
+    if !source
+        .extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("mp3"))
+    {
+        return Ok(Vec::new());
+    }
+
+    match Tag::read_from_path(source) {
+        Ok(tag) => Ok(tag
+            .frames()
+            .filter(|frame| {
+                matches!(
+                    frame.content(),
+                    Content::EncapsulatedObject(object)
+                        if object.description.starts_with("Serato ")
+                )
+            })
+            .cloned()
+            .collect()),
+        Err(error) if matches!(error.kind, Id3ErrorKind::NoTag) => Ok(Vec::new()),
+        Err(error) => Err(error),
+    }
+}
+
+pub(crate) fn serato_frame_names(frames: &[Frame]) -> Vec<String> {
+    let mut names = frames
+        .iter()
+        .filter_map(|frame| match frame.content() {
+            Content::EncapsulatedObject(object) => object
+                .description
+                .strip_prefix("Serato ")
+                .map(str::to_owned),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    names.sort();
+    names.dedup();
+    names
 }
 
 fn clean_text(value: &str) -> String {

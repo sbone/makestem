@@ -38,7 +38,7 @@ final class MakestemTests: XCTestCase {
     }
 
     func testTrackDisplayTitleGracefullyHandlesMissingArtist() throws {
-        let base = #"{"path":"/Music/Track.flac","title":"Track","format":"FLAC","codec":"flac","duration_seconds":120,"sample_rate":44100,"channels":2,"bit_depth":24,"lossless":true,"source_bitrate_kbps":null,"source_vbr":null,"output_quality":"320 kbps MP3","readiness":"ready","message":"Ready"}"#
+        let base = #"{"path":"/Music/Track.flac","title":"Track","format":"FLAC","codec":"flac","duration_seconds":120,"sample_rate":44100,"channels":2,"bit_depth":24,"lossless":true,"source_bitrate_kbps":null,"source_vbr":null,"output_quality":"320 kbps MP3","serato_metadata":[],"readiness":"ready","message":"Ready"}"#
         let withArtist = base.replacingOccurrences(
             of: #""title":"Track""#,
             with: #""artist":"The Artist","title":"Track""#
@@ -52,6 +52,15 @@ final class MakestemTests: XCTestCase {
         XCTAssertEqual(
             try decoder.decode(Inspection.self, from: Data(base.utf8)).displayTitle,
             "Track"
+        )
+
+        let withSerato = base.replacingOccurrences(
+            of: #""serato_metadata":[]"#,
+            with: #""serato_metadata":["BeatGrid","Markers2"]"#
+        )
+        XCTAssertEqual(
+            try decoder.decode(Inspection.self, from: Data(withSerato.utf8)).seratoNotice,
+            "Serato tags"
         )
     }
 
@@ -149,6 +158,15 @@ final class MakestemTests: XCTestCase {
         XCTAssertEqual(event.type, "stage_progress")
         XCTAssertEqual(event.detail, "Analyzing audio")
         XCTAssertEqual(event.percent, 42)
+    }
+
+    func testEngineEventDecodesPersistentMetadataNotice() throws {
+        let event = try Engine.decodeEvent(
+            Data(#"{"type":"metadata_detected","detail":"Serato tags"}"#.utf8)
+        )
+
+        XCTAssertEqual(event.type, "metadata_detected")
+        XCTAssertEqual(event.detail, "Serato tags")
     }
 
     func testCancellationCleansTemporaryFilesAndRestoresOutput() throws {

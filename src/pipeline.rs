@@ -1,5 +1,7 @@
-use crate::inspect::{Mp3Encoding, encoding_for_audio};
-use id3::{Content, ErrorKind as Id3ErrorKind, Frame, Tag, TagLike};
+#[cfg(test)]
+use crate::inspect::serato_frame_names;
+use crate::inspect::{Mp3Encoding, encoding_for_audio, read_serato_frames};
+use id3::{Frame, Tag, TagLike};
 use sha2::{Digest, Sha256};
 use std::{
     ffi::OsStr,
@@ -61,6 +63,7 @@ pub type Result<T> = std::result::Result<T, PipelineError>;
 
 #[derive(Clone, Debug)]
 pub enum Event {
+    MetadataDetected(String),
     StageStarted(String),
     StageProgress {
         detail: String,
@@ -111,7 +114,12 @@ impl Pipeline {
         })?;
         validate_audio(&input)?;
         let encoding = encoding_for_audio(&input).map_err(PipelineError::new)?;
-        let serato_frames = read_serato_frames(&input)?;
+        let serato_frames = read_serato_frames(&input).map_err(|error| {
+            PipelineError::guided(
+                format!("Could not safely read this MP3’s Serato metadata: {error}"),
+                "Repair or remove the damaged ID3 tag, then retry. Makestem stopped rather than silently dropping cue points.",
+            )
+        })?;
         let parent = input.parent().unwrap_or_else(|| Path::new("."));
         let output_dir = parent.join("output");
         let work_dir = parent.join(format!(".makestem-work-{}", std::process::id()));
@@ -204,11 +212,7 @@ impl Pipeline {
         reporter: &mut impl Reporter,
     ) -> Result<Vec<PathBuf>> {
         if !self.serato_frames.is_empty() {
-            let names = serato_frame_names(&self.serato_frames).join(", ");
-            reporter.report(Event::StageStarted(format!(
-                "Serato {names} frames present"
-            )));
-            reporter.report(Event::StageCompleted("Serato metadata detected".to_owned()));
+            reporter.report(Event::MetadataDetected("Serato tags".to_owned()));
         }
         prepare_model(reporter)?;
         let only_acapella = products == [Product::Acapella];
@@ -301,50 +305,6 @@ impl Pipeline {
                 .join(format!(".makestem-backup-{process}-{index}.mp3")),
         }
     }
-}
-
-fn read_serato_frames(source: &Path) -> Result<Vec<Frame>> {
-    if !source
-        .extension()
-        .is_some_and(|extension| extension.eq_ignore_ascii_case("mp3"))
-    {
-        return Ok(Vec::new());
-    }
-
-    match Tag::read_from_path(source) {
-        Ok(tag) => Ok(tag
-            .frames()
-            .filter(|frame| {
-                matches!(
-                    frame.content(),
-                    Content::EncapsulatedObject(object)
-                        if object.description.starts_with("Serato ")
-                )
-            })
-            .cloned()
-            .collect()),
-        Err(error) if matches!(error.kind, Id3ErrorKind::NoTag) => Ok(Vec::new()),
-        Err(error) => Err(PipelineError::guided(
-            format!("Could not safely read this MP3’s Serato metadata: {error}"),
-            "Repair or remove the damaged ID3 tag, then retry. Makestem stopped rather than silently dropping cue points.",
-        )),
-    }
-}
-
-fn serato_frame_names(frames: &[Frame]) -> Vec<String> {
-    let mut names = frames
-        .iter()
-        .filter_map(|frame| match frame.content() {
-            Content::EncapsulatedObject(object) => object
-                .description
-                .strip_prefix("Serato ")
-                .map(str::to_owned),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
-    names.sort();
-    names.dedup();
-    names
 }
 
 fn copy_serato_frames(frames: &[Frame], destination: &Path) -> Result<()> {

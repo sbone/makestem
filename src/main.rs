@@ -14,6 +14,9 @@ struct JsonReporter;
 impl Reporter for JsonReporter {
     fn report(&mut self, event: Event) {
         let value = match event {
+            Event::MetadataDetected(detail) => {
+                json!({ "type": "metadata_detected", "detail": detail })
+            }
             Event::StageStarted(label) => json!({ "type": "stage_started", "label": label }),
             Event::StageProgress { detail, percent } => {
                 json!({ "type": "stage_progress", "detail": detail, "percent": percent })
@@ -40,6 +43,10 @@ impl TerminalReporter {
 impl Reporter for TerminalReporter {
     fn report(&mut self, event: Event) {
         match event {
+            Event::MetadataDetected(detail) => {
+                self.clear();
+                eprintln!("✓ {detail} detected and will be preserved on output tracks");
+            }
             Event::StageStarted(label) => {
                 self.clear();
                 let spinner = ProgressBar::new_spinner();

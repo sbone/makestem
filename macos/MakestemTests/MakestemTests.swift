@@ -116,6 +116,23 @@ final class MakestemTests: XCTestCase {
         XCTAssertNil(status.estimatedRemaining(at: Date().addingTimeInterval(30)))
     }
 
+    @MainActor
+    func testDockProgressTracksActiveWork() {
+        let model = AppModel(state: .empty, modelState: .missing)
+        XCTAssertEqual(model.dockProgress, .inactive)
+
+        model.modelState = .downloading(ProcessingStatus(stage: "Starting download"))
+        XCTAssertEqual(model.dockProgress, .indeterminate)
+
+        model.modelState = .downloading(
+            ProcessingStatus(stage: "Downloading", percent: 42)
+        )
+        XCTAssertEqual(model.dockProgress, .determinate(0.42))
+
+        model.modelState = .ready
+        XCTAssertEqual(model.dockProgress, .inactive)
+    }
+
     func testMalformedEngineEventReturnsActionableError() {
         XCTAssertThrowsError(try Engine.decodeEvent(Data("not json".utf8))) { error in
             let message = error.localizedDescription

@@ -573,6 +573,10 @@ struct ContentView: View {
         .padding(32)
         .frame(minWidth: 620, idealWidth: 680, minHeight: 520, idealHeight: 600)
         .background(Color(nsColor: .windowBackgroundColor))
+        .onAppear { DockProgressController.shared.update(model.dockProgress) }
+        .onChange(of: model.dockProgress) { _, progress in
+            DockProgressController.shared.update(progress)
+        }
         .animation(reduceMotion || model.isScreenshotMode ? nil : .smooth(duration: 0.3), value: modelPhase)
         .animation(reduceMotion || model.isScreenshotMode ? nil : .smooth(duration: 0.3), value: screenPhase)
         .alert(

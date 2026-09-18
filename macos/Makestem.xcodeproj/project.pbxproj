@@ -11,6 +11,7 @@
 		A10000000000000000000003 /* MakestemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000004 /* MakestemTests.swift */; };
 		A10000000000000000000004 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000007 /* Assets.xcassets */; };
 		A10000000000000000000005 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = AE0000000000000000000002 /* Sparkle */; };
+		A10000000000000000000006 /* DockProgress.swift in Sources */ = {isa = PBXBuildFile; fileRef = A20000000000000000000008 /* DockProgress.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -31,6 +32,7 @@
 		A20000000000000000000005 /* Makestem.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Makestem.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000000000000000000006 /* MakestemTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MakestemTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000000000000000000007 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A20000000000000000000008 /* DockProgress.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DockProgress.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -52,6 +54,7 @@
 			isa = PBXGroup;
 			children = (
 				A20000000000000000000007 /* Assets.xcassets */,
+				A20000000000000000000008 /* DockProgress.swift */,
 				A20000000000000000000001 /* MakestemApp.swift */,
 				A20000000000000000000002 /* Info.plist */,
 				A20000000000000000000003 /* THIRD_PARTY_NOTICES.md */,
@@ -159,7 +162,7 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		A80000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001 /* MakestemApp.swift in Sources */); runOnlyForDeploymentPostprocessing = 0; };
+		A80000000000000000000001 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001 /* MakestemApp.swift in Sources */, A10000000000000000000006 /* DockProgress.swift in Sources */); runOnlyForDeploymentPostprocessing = 0; };
 		A80000000000000000000002 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000003 /* MakestemTests.swift in Sources */); runOnlyForDeploymentPostprocessing = 0; };
 /* End PBXSourcesBuildPhase section */
 

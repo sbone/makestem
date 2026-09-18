@@ -60,4 +60,8 @@ for license in FFmpeg-LGPL-2.1.txt LAME-LGPL-2.0.txt demucs-rs-Apache-2.0.txt; d
 done
 
 codesign --verify --deep --strict --verbose=2 "$app"
+
+app_team="$(codesign -d --verbose=4 "$app" 2>&1 | awk -F= '/^TeamIdentifier=/ { print $2 }')"
+sparkle_team="$(codesign -d --verbose=4 "$contents/Frameworks/Sparkle.framework/Versions/B/Sparkle" 2>&1 | awk -F= '/^TeamIdentifier=/ { print $2 }')"
+[[ "$app_team" == "$sparkle_team" ]] || fail "Makestem and Sparkle have different signing Team IDs."
 echo "Validated $app"

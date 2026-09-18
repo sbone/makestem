@@ -8,7 +8,7 @@ identity="${MAKESTEM_SIGNING_IDENTITY:--}"
 configuration="${MAKESTEM_BUILD_CONFIGURATION:-Release}"
 signing_flags=()
 if [[ "$identity" != "-" ]]; then
-  signing_flags=(--timestamp)
+  signing_flags=(--options runtime --timestamp)
 fi
 
 cd "$repo_root"
@@ -27,19 +27,19 @@ xcodebuild \
   build
 
 app="$repo_root/build/Makestem.app"
-if [[ "$identity" != "-" ]]; then
-  sparkle="$app/Contents/Frameworks/Sparkle.framework/Versions/B"
-  for component in \
-    "$sparkle/XPCServices/Downloader.xpc" \
-    "$sparkle/XPCServices/Installer.xpc" \
-    "$sparkle/Updater.app" \
-    "$sparkle/Autoupdate" \
-    "$sparkle"; do
-    codesign --force --sign "$identity" --options runtime --timestamp \
-      --preserve-metadata=identifier,entitlements,requirements,flags "$component"
-  done
-fi
+sparkle="$app/Contents/Frameworks/Sparkle.framework"
+sparkle_version="$sparkle/Versions/B"
+for component in \
+  "$sparkle_version/Sparkle" \
+  "$sparkle_version/XPCServices/Downloader.xpc" \
+  "$sparkle_version/XPCServices/Installer.xpc" \
+  "$sparkle_version/Updater.app" \
+  "$sparkle_version/Autoupdate" \
+  "$sparkle"; do
+  codesign --force --sign "$identity" "${signing_flags[@]}" \
+    --preserve-metadata=identifier,entitlements,requirements,flags "$component"
+done
 
-codesign --force --sign "$identity" --options runtime "${signing_flags[@]}" \
+codesign --force --sign "$identity" "${signing_flags[@]}" \
   "$app"
 echo "Built $app"

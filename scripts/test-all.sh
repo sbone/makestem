@@ -32,6 +32,9 @@ echo "==> Building Mac app"
 echo "==> Validating packaged Mac app"
 ./scripts/validate-mac-app.sh
 
+echo "==> Launching packaged Mac app"
+./scripts/test-mac-app-launch.sh
+
 echo "==> Audio-format regression matrix"
 ./scripts/test-audio-formats.sh
 

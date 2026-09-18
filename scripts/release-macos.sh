@@ -63,6 +63,7 @@ echo "==> Building Developer ID-signed app"
 MAKESTEM_SIGNING_IDENTITY="$identity" ./scripts/build-mac-app.sh
 app="$repo_root/build/Makestem.app"
 ./scripts/validate-mac-app.sh "$app"
+./scripts/test-mac-app-launch.sh "$app"
 codesign --verify --deep --strict --verbose=2 "$app"
 signature_details="$(codesign -d --verbose=4 "$app" 2>&1)"
 [[ "$signature_details" == *"Authority=Developer ID Application:"* ]] \

@@ -1,4 +1,5 @@
 use crate::inspect::{Mp3Encoding, encoding_for_audio};
+use id3::{Content, ErrorKind as Id3ErrorKind, Frame, Tag, TagLike};
 use sha2::{Digest, Sha256};
 use std::{
     ffi::OsStr,
@@ -78,6 +79,7 @@ pub struct Pipeline {
     work_dir: PathBuf,
     title: String,
     encoding: Mp3Encoding,
+    serato_frames: Vec<Frame>,
 }
 
 struct PendingOutput {
@@ -109,6 +111,7 @@ impl Pipeline {
         })?;
         validate_audio(&input)?;
         let encoding = encoding_for_audio(&input).map_err(PipelineError::new)?;
+        let serato_frames = read_serato_frames(&input)?;
         let parent = input.parent().unwrap_or_else(|| Path::new("."));
         let output_dir = parent.join("output");
         let work_dir = parent.join(format!(".makestem-work-{}", std::process::id()));
@@ -125,6 +128,7 @@ impl Pipeline {
             work_dir,
             title,
             encoding,
+            serato_frames,
         })
     }
 
@@ -199,6 +203,13 @@ impl Pipeline {
         replace: bool,
         reporter: &mut impl Reporter,
     ) -> Result<Vec<PathBuf>> {
+        if !self.serato_frames.is_empty() {
+            let names = serato_frame_names(&self.serato_frames).join(", ");
+            reporter.report(Event::StageStarted(format!(
+                "Serato {names} frames present"
+            )));
+            reporter.report(Event::StageCompleted("Serato metadata detected".to_owned()));
+        }
         prepare_model(reporter)?;
         let only_acapella = products == [Product::Acapella];
         let mut args = vec![self.input.as_os_str().to_owned(), "-m".into(), MODEL.into()];
@@ -219,6 +230,10 @@ impl Pipeline {
                 Product::Instrumental => self.encode_instrumental(&output.temporary, reporter),
             };
             if let Err(error) = result {
+                cleanup_pending(&pending);
+                return Err(error);
+            }
+            if let Err(error) = copy_serato_frames(&self.serato_frames, &output.temporary) {
                 cleanup_pending(&pending);
                 return Err(error);
             }
@@ -286,6 +301,72 @@ impl Pipeline {
                 .join(format!(".makestem-backup-{process}-{index}.mp3")),
         }
     }
+}
+
+fn read_serato_frames(source: &Path) -> Result<Vec<Frame>> {
+    if !source
+        .extension()
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("mp3"))
+    {
+        return Ok(Vec::new());
+    }
+
+    match Tag::read_from_path(source) {
+        Ok(tag) => Ok(tag
+            .frames()
+            .filter(|frame| {
+                matches!(
+                    frame.content(),
+                    Content::EncapsulatedObject(object)
+                        if object.description.starts_with("Serato ")
+                )
+            })
+            .cloned()
+            .collect()),
+        Err(error) if matches!(error.kind, Id3ErrorKind::NoTag) => Ok(Vec::new()),
+        Err(error) => Err(PipelineError::guided(
+            format!("Could not safely read this MP3’s Serato metadata: {error}"),
+            "Repair or remove the damaged ID3 tag, then retry. Makestem stopped rather than silently dropping cue points.",
+        )),
+    }
+}
+
+fn serato_frame_names(frames: &[Frame]) -> Vec<String> {
+    let mut names = frames
+        .iter()
+        .filter_map(|frame| match frame.content() {
+            Content::EncapsulatedObject(object) => object
+                .description
+                .strip_prefix("Serato ")
+                .map(str::to_owned),
+            _ => None,
+        })
+        .collect::<Vec<_>>();
+    names.sort();
+    names.dedup();
+    names
+}
+
+fn copy_serato_frames(frames: &[Frame], destination: &Path) -> Result<()> {
+    if frames.is_empty() {
+        return Ok(());
+    }
+    let mut tag = Tag::read_from_path(destination).map_err(|error| {
+        PipelineError::guided(
+            format!("Could not add Serato metadata to the finished stem: {error}"),
+            "The unfinished output was removed. Check the source metadata and available disk space, then retry.",
+        )
+    })?;
+    let version = tag.version();
+    for frame in frames {
+        tag.add_frame(frame.clone());
+    }
+    tag.write_to_path(destination, version).map_err(|error| {
+        PipelineError::guided(
+            format!("Could not save Serato metadata to the finished stem: {error}"),
+            "The unfinished output was removed. Check output-folder permissions and available disk space, then retry.",
+        )
+    })
 }
 
 fn instrumental_mix_args(
@@ -1078,6 +1159,7 @@ fn find_file(root: &Path, name: &str) -> Result<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use id3::{Version, frame::EncapsulatedObject};
     use std::time::{SystemTime, UNIX_EPOCH};
 
     fn test_directory(label: &str) -> PathBuf {
@@ -1105,6 +1187,44 @@ mod tests {
     fn cleans_control_characters_from_tags_and_messages() {
         assert_eq!(clean_tag("A\nTitle\u{1b}[31m"), "A Title [31m");
         assert_eq!(clean_tag("\n\t"), "Untitled");
+    }
+
+    #[test]
+    fn preserves_and_names_serato_frames() {
+        let directory = test_directory("serato");
+        let source = directory.join("source.mp3");
+        let output = directory.join("output.mp3");
+        fs::write(&source, b"audio").unwrap();
+        fs::write(&output, b"stem").unwrap();
+
+        let mut source_tag = Tag::new();
+        for description in ["Serato Markers2", "Serato BeatGrid", "Unrelated Data"] {
+            source_tag.add_frame(EncapsulatedObject {
+                mime_type: "application/octet-stream".to_owned(),
+                filename: String::new(),
+                description: description.to_owned(),
+                data: vec![1, 2, 3],
+            });
+        }
+        source_tag.write_to_path(&source, Version::Id3v23).unwrap();
+        Tag::new().write_to_path(&output, Version::Id3v23).unwrap();
+
+        let frames = read_serato_frames(&source).unwrap();
+        assert_eq!(
+            serato_frame_names(&frames),
+            ["BeatGrid".to_owned(), "Markers2".to_owned()]
+        );
+
+        copy_serato_frames(&frames, &output).unwrap();
+        let output_tag = Tag::read_from_path(&output).unwrap();
+        assert_eq!(
+            output_tag
+                .encapsulated_objects()
+                .filter(|object| object.description.starts_with("Serato "))
+                .count(),
+            2
+        );
+        fs::remove_dir_all(directory).unwrap();
     }
 
     #[test]

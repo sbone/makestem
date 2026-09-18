@@ -68,9 +68,10 @@ output/
 ```
 
 Makestem preserves source metadata and adds `(Acapella)` or `(Instrumental)` to
-the track title. Lossless sources produce 320 kbps MP3s. Compressed sources are
-never needlessly up-encoded: output quality is capped at the detected source
-quality, including an appropriate profile for VBR MP3s.
+the track title. For MP3 sources, embedded Serato cues, loops, beatgrids, and
+analysis data are copied to each stem. Lossless sources produce 320 kbps MP3s.
+Compressed sources are never needlessly up-encoded: output quality is capped
+at the detected source quality, including an appropriate profile for VBR MP3s.
 
 Existing stems are never silently overwritten. The app asks first, creates the
 replacement completely, and preserves the old file if processing fails or is
